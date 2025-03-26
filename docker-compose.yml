@@ -1,5 +1,11 @@
 version: '3.8'
 
+networks:
+  hades-network:
+    driver: bridge
+  hades-monitoring:
+    external: true
+
 services:
   # Neo4j service for GraphRAG
   neo4j:
@@ -8,15 +14,20 @@ services:
     environment:
       - NEO4J_AUTH=neo4j/password
       - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      # Enable metrics for Prometheus
+      - NEO4J_dbms_jvm_additional=-javaagent:/metrics/jmx_prometheus_javaagent.jar=9141:/metrics/neo4j.yml
     ports:
       - "7474:7474"  # HTTP
       - "7687:7687"  # Bolt
+      - "9141:9141"  # Prometheus metrics
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
       - neo4j_import:/import
+      - ./monitoring/prometheus/jmx_exporter:/metrics
     networks:
       - hades-network
+      - hades-monitoring
 
   # Ollama service for LLM integration
   ollama:
@@ -28,6 +39,7 @@ services:
       - ollama_models:/root/.ollama
     networks:
       - hades-network
+      - hades-monitoring
 
   # Main Python service for running experiments
   hades:
@@ -38,6 +50,8 @@ services:
     depends_on:
       - neo4j
       - ollama
+    ports:
+      - "9000:9000"   # Metrics port for Prometheus
     volumes:
       - .:/app
       - ./data:/app/data
@@ -48,13 +62,16 @@ services:
       - NEO4J_PASSWORD=password
       - OLLAMA_HOST=ollama
       - OLLAMA_PORT=11434
+      # Monitoring configuration
+      - ENABLE_METRICS=true
+      - METRICS_PORT=9000
+      - ARIZE_PHOENIX_URL=http://arize-phoenix:8080
     networks:
       - hades-network
+      - hades-monitoring
     command: tail -f /dev/null  # Keep container running
 
-networks:
-  hades-network:
-    driver: bridge
+
 
 volumes:
   neo4j_data:
