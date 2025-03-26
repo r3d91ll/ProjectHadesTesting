@@ -1,0 +1,71 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Database files
+*.db
+*.sqlite3
+
+# Log files
+*.log
+
+# Temporary files
+temp/
+tmp/
+
+# Large vector indices and models
+*.bin
+*.index
+*.faiss
+*.model
+
+# Environment configuration
+.env
+.env.*
+
+# Experiment results that shouldn't be committed
+data/results/*
+!data/results/.gitkeep
+
+# Downloaded datasets
+data/datasets/*
+!data/datasets/.gitkeep

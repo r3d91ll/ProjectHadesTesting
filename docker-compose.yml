@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Neo4j service for GraphRAG
+  neo4j:
+    image: neo4j:5.8.0
+    container_name: hades-neo4j
+    environment:
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/import
+    networks:
+      - hades-network
+
+  # Ollama service for LLM integration
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hades-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - hades-network
+
+  # Main Python service for running experiments
+  hades:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hades-experiments
+    depends_on:
+      - neo4j
+      - ollama
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    environment:
+      - PYTHONPATH=/app
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+    networks:
+      - hades-network
+    command: tail -f /dev/null  # Keep container running
+
+networks:
+  hades-network:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  ollama_models:
