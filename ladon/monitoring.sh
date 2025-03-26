@@ -49,7 +49,8 @@ case "$1" in
         echo -e "${GREEN}Monitoring stack is now running:${NC}"
         echo "- Grafana: http://localhost:3000 (admin/admin_password)"
         echo "- Prometheus: http://localhost:9090"
-        echo "- Arize Phoenix: http://localhost:8080"
+        echo "- Arize Phoenix: http://localhost:8084"
+        echo "- cAdvisor: http://localhost:8082"
         ;;
     stop)
         echo -e "${YELLOW}Stopping monitoring stack...${NC}"

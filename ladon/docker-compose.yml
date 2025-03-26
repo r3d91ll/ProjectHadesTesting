@@ -68,7 +68,7 @@ services:
     networks:
       - monitoring-network
 
-  # cAdvisor - Container metrics
+  # cAdvisor - Container metrics (modified to avoid host docker socket)
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: cadvisor
@@ -78,10 +78,13 @@ services:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
+      # Removed /var/lib/docker volume that was causing issues
       - /dev/disk/:/dev/disk:ro
+    command:
+      - '--docker_only=false'
+      - '--disable_metrics=disk,diskIO,network,tcp,udp,percpu,sched'
     ports:
-      - "8080:8080"
+      - "8082:8080"
     networks:
       - monitoring-network
 
@@ -114,7 +117,7 @@ services:
       - arize_data:/phoenix/data
     ports:
       - "6006:6006"  # TensorBoard
-      - "8080:8080"  # Phoenix UI
+      - "8084:8080"  # Phoenix UI (changed from 8080 to avoid conflict)
     networks:
       - monitoring-network
       - hades-monitoring

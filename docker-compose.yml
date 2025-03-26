@@ -24,7 +24,7 @@ services:
       - neo4j_data:/data
       - neo4j_logs:/logs
       - neo4j_import:/import
-      - ./monitoring/prometheus/jmx_exporter:/metrics
+      - ./ladon/prometheus/jmx_exporter:/metrics
     networks:
       - hades-network
       - hades-monitoring

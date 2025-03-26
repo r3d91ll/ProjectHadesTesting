@@ -49,10 +49,10 @@ RUN if [ ! -f "data/datasets/kilt/hotpotqa-test.jsonl" ]; then \
     wget -O data/datasets/kilt/hotpotqa-test.jsonl https://dl.fbaipublicfiles.com/KILT/hotpotqa-test.jsonl; \
     fi
 
-# Add monitoring scripts
-COPY monitoring/scripts/metrics_exporter.py /app/monitoring/scripts/
-COPY monitoring/scripts/start_monitoring.sh /app/monitoring/scripts/
-RUN chmod +x /app/monitoring/scripts/start_monitoring.sh
+# Add monitoring scripts from Ladon
+COPY ladon/scripts/metrics_exporter.py /app/ladon/scripts/
+COPY ladon/scripts/start_monitoring.sh /app/ladon/scripts/
+RUN chmod +x /app/ladon/scripts/start_monitoring.sh
 
 # Create a non-root user and switch to it
 RUN groupadd -r hades && useradd -r -g hades hades
@@ -60,4 +60,4 @@ RUN chown -R hades:hades /app
 USER hades
 
 # Set the entrypoint to use our monitoring wrapper script
-ENTRYPOINT ["/app/monitoring/scripts/start_monitoring.sh"]
+ENTRYPOINT ["/app/ladon/scripts/start_monitoring.sh"]
