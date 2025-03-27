@@ -23,6 +23,8 @@ scrape_configs:
   - job_name: 'process-exporter'
     static_configs:
       - targets: ['process-exporter:9256']
+      
+  # GPU Metrics are collected via node-exporter textfile collector
   
   # Add targets for PathRAG and GraphRAG containers
   - job_name: 'hades-containers'
