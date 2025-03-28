@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import nltk
 from nltk.tokenize import sent_tokenize
 
-from builder import BaseChunker
+from .builder import BaseChunker
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.chunkers")

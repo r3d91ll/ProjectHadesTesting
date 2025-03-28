@@ -1,0 +1,246 @@
+# RAG Dataset Builder Configuration
+# Comprehensive configuration file that supports all knowledge domains
+
+# Source documents directory (one level up from the RAG implementation)
+source_documents_dir: "../source_documents"
+
+# Output directory for processed data (can be RAG-specific)
+output_dir: "../rag_databases/current"
+
+# Input/Output configuration
+input:
+  include:
+    - "**/*.pdf"
+    - "**/*.txt"
+    - "**/*.md"
+    - "**/*.py"
+    - "**/*.js"
+    - "**/*.java"
+  exclude:
+    - "**/README.md"
+    - "**/LICENSE.md"  # We now handle license info in metadata
+    - "**/.git/**"
+    - "**/node_modules/**"
+
+# Document processor configuration
+processor:
+  type: "auto"  # Options: auto, simple_text, pdf, code
+  # auto will select the appropriate processor based on file extension
+  extract_metadata: true
+  fallback_to_pdfminer: true
+  license_tracking: true  # Explicitly track license information
+
+# Text chunking configuration  
+chunker:
+  type: "semantic"  # Options: sliding_window, semantic, fixed_size
+  chunk_size: 300  # Maximum chunk size (words for sliding_window, characters for semantic)
+  chunk_overlap: 50  # Overlap between chunks
+  respect_sentences: true
+  min_chunk_size: 100
+
+# Embedding generation configuration
+embedder:
+  type: "sentence_transformer"  # Options: sentence_transformer, openai
+  model_name: "all-MiniLM-L6-v2"  # Embedding model name
+  batch_size: 32  # Batch size for embedding generation
+  use_gpu: true  # Use GPU acceleration (will use your RTX A6000 GPUs)
+  cache_embeddings: true
+
+# Output formatter configuration  
+output:
+  # Multiple output formatters can be enabled simultaneously
+  formats:
+    pathrag:
+      enabled: true
+      # Storage backend options
+      backend: "networkx"  # Options: networkx, neo4j, igraph
+      neo4j_connection: 
+        uri: "bolt://localhost:7687"
+        user: "neo4j"
+        password: "password"
+      # Output options
+      include_metadata: true
+      save_raw_text: true
+      save_raw_embeddings: true
+    
+    vector_db:
+      enabled: false
+      type: "faiss"  # Options: faiss, chroma, milvus, qdrant, pinecone
+      # Connection parameters for hosted services
+      connection:
+        api_key: ""  # For services like Pinecone
+        environment: ""  # For services like Pinecone
+      # Collection/index settings
+      collection_name: "rag_dataset"
+      dimension: 384  # Must match embedding dimension
+      distance_metric: "cosine"
+      # Output options
+      include_metadata: true
+    
+    huggingface:
+      enabled: false
+      # Dataset settings
+      dataset_name: "rag_dataset"
+      push_to_hub: false
+      hf_token: ""  # HF token for pushing to Hub
+      # Format options
+      include_embeddings: true
+      include_metadata: true
+      include_chunks: true
+
+# Collection settings
+collection:
+  enabled: true
+  type: "academic"
+  source: "multi"
+  max_papers_per_term: 50
+  
+  # Academic source API configurations
+  sources:
+    arxiv:
+      enabled: true
+      rate_limit:
+        requests_per_minute: 60  # arXiv API recommendation
+        max_retries: 3
+        backoff_factor: 2.0
+      sort_by: "relevance"  # Options: "relevance", "lastUpdatedDate", "submittedDate"
+      search_fields:
+        - "title"
+        - "abstract"
+        - "author"
+    
+    semantic_scholar:
+      enabled: true
+      api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
+      rate_limit:
+        requests_per_minute: 100
+        max_retries: 3
+        backoff_factor: 2.0
+    
+    # pubmed:
+    #   enabled: true
+    #   api_key: "${PUBMED_API_KEY}"
+    #   email: "${PUBMED_EMAIL}"
+    
+    # socarxiv:
+    #   enabled: true
+    #   osf_token: "${OSF_TOKEN}"
+      
+    # JSTOR configuration template (commented out)
+    # jstor:
+    #   enabled: false  # Set to true when credentials are configured
+    #   # Authentication settings
+    #   auth_type: "oauth2"  # JSTOR uses OAuth 2.0
+    #   client_id: "${JSTOR_CLIENT_ID}"
+    #   client_secret: "${JSTOR_CLIENT_SECRET}"
+    #   username: "${JSTOR_USERNAME}"  # Institutional login if applicable
+    #   password: "${JSTOR_PASSWORD}"  # Institutional password if applicable
+    #   # API settings
+    #   base_url: "https://www.jstor.org/api/"
+    #   version: "v1"
+    #   rate_limit:
+    #     requests_per_minute: 30  # JSTOR has strict rate limits
+    #     max_retries: 3
+    #     backoff_factor: 4.0
+    #     max_parallel_requests: 2
+    #   # Search settings
+    #   search_fields:
+    #     - "full-text"
+    #     - "title"
+    #     - "author"
+    #     - "abstract"
+    #   content_types:
+    #     - "articles"  # Other options: "books", "pamphlets", "proceedings"
+    #   include_disciplines:
+    #     - "anthropology"
+    #     - "sociology"
+    #     - "science and technology studies"
+    #   # File handling
+    #   download_pdf: true
+    #   extract_text: true
+    #   store_metadata: true
+
+  # Knowledge domain-specific search terms
+  # You can enable/disable specific domains as needed
+  domains:
+    anthropology_of_value:
+      enabled: true
+      search_terms:
+        - "anthropology of value"
+        - "value systems anthropology"
+        - "cultural value exchange"
+        - "economic anthropology"
+        - "gift economy"
+        - "value creation anthropology"
+        - "moral economy"
+        - "exchange theory anthropology"
+        - "cultural capital"
+        - "symbolic value anthropology"
+    
+    science_technology_studies:
+      enabled: true
+      search_terms:
+        - "science and technology studies"
+        - "actor network theory"
+        - "technological determinism"
+        - "sociotechnical systems"
+        - "social construction of technology"
+        - "technoscience"
+        - "technology sociology"
+        - "feminist technoscience"
+        - "technological infrastructure"
+        - "science policy"
+    
+    interdisciplinary:
+      enabled: true
+      search_terms:
+        - "value in technological systems"
+        - "ethics in technology anthropology"
+        - "cultural impact of technology"
+        - "indigenous knowledge technology"
+        - "digital anthropology"
+        - "anthropology of computing"
+        - "technology adoption cultures"
+        - "value-sensitive design"
+    
+    # Add more domains as needed
+    ai_ethics:
+      enabled: false
+      search_terms:
+        - "ai ethics"
+        - "algorithmic fairness"
+        - "machine learning bias"
+    
+    computer_science:
+      enabled: false
+      search_terms:
+        - "knowledge representation"
+        - "natural language processing"
+        - "machine learning"
+
+# Processing configuration
+processing:
+  batch_size: 5  # Number of documents to process in each batch
+  download_threshold: 50  # Number of documents to download before processing begins
+  num_workers: 2  # Number of parallel workers (matching your 2 GPUs)
+  max_ram_usage_gb: 16  # Maximum RAM to use during processing
+  incremental: true  # Process documents incrementally vs. all at once
+  verbose: true
+
+# Performance tracking with Arize Phoenix
+performance_tracking:
+  enabled: true
+  project_name: "pathrag-dataset-builder"
+  phoenix_url: "http://0.0.0.0:8084"
+  batch_size: 100
+  track_document_processing: true
+  track_chunking: true
+  track_embedding_generation: true
+  track_output_generation: true
+
+# Logging settings
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_to_file: true
+  log_file: "./logs/rag_dataset_builder.log"
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

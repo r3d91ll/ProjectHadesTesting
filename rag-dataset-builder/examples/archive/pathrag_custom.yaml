@@ -1,0 +1,31 @@
+# Custom PathRAG Configuration
+directories:
+  input: "./data/input"
+  output: "./data/output"
+  logs: "./logs"
+  cache: "./.cache"
+
+# Override PathRAG settings for this example
+retrieval_systems:
+  pathrag:
+    type: "pathrag"
+    storage_backend: "networkx"
+    embedder: "sentence_transformers"  # Using sentence_transformers instead of OpenAI
+    chunker: "sliding_window"
+    processor: "pdf"
+    
+    # Path generation and retrieval settings
+    path_retrieval:
+      max_paths: 3
+      max_path_length: 2
+      similarity_threshold: 0.75
+      path_ranking: "combined"
+
+# Arize Phoenix monitoring configuration
+monitoring:
+  arize_phoenix:
+    enabled: true
+    project_name: "pathrag-example"
+    server_port: 8080
+    track_system_resources: true
+    track_gpu_metrics: true

@@ -1,0 +1,4 @@
+# Environment Variable Configuration Example
+directories:
+  input: "${CUSTOM_DATA_DIR}/input"
+  output: "${CUSTOM_DATA_DIR}/output"

@@ -106,13 +106,13 @@ def main():
     if config.get("monitoring", {}).get("arize_phoenix", {}).get("enabled", False):
         tracker = ArizePhoenixTracker(
             project_name=config["monitoring"]["arize_phoenix"].get("project_name", "pathrag-example"),
-            port=config["monitoring"]["arize_phoenix"].get("server_port", 8080)
+            server_port=config["monitoring"]["arize_phoenix"].get("server_port", 8080)
         )
     
     # Initialize PathRAG
     logger.info("Initializing PathRAG...")
     pathrag = create_retrieval_system(
-        system_type="pathrag",
+        name="pathrag",
         tracker=tracker
     )
     

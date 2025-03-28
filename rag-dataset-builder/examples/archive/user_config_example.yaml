@@ -1,0 +1,11 @@
+# User Configuration Example
+directories:
+  input: "./custom_data/input"
+  output: "./custom_data/output"
+
+processors:
+  custom_pdf:
+    type: "pdf"
+    extract_metadata: true
+    ocr_enabled: true
+    max_pages: 100

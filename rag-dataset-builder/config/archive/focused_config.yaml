@@ -1,0 +1,69 @@
+# Focused config for multi-source PathRAG builder
+# Optimized for targeted collection with RTX A6000 GPU acceleration
+
+data:
+  input_dir: "data"
+  output_dir: "../rag_databases/current"
+
+collection:
+  type: "academic"
+  max_papers_per_term: 10  # Limited to prevent indefinite collection
+  
+  # Source-specific configurations
+  semantic_scholar:
+    enabled: true
+    api_key: ${SEMANTIC_SCHOLAR_API_KEY}
+    batch_size: 10
+    rate_limit: 3  # requests per second
+  
+  pubmed:
+    enabled: true
+    email: "researcher@example.com"
+    api_key: ${PUBMED_API_KEY}
+    tool: "MultiSourcePathRAG"
+    batch_size: 10
+    rate_limit: 3
+  
+  socarxiv:
+    enabled: true
+    api_key: ${OSF_API_KEY}
+    batch_size: 10
+    rate_limit: 3
+  
+  # Focused domains with fewer search terms
+  domains:
+    science_technology_studies:
+      enabled: true
+      search_terms:
+        - "actor network theory"
+        - "technoscience"
+        - "feminist technoscience"
+
+processing:
+  document_processor: "standard"
+  chunk_size: 1000
+  chunk_overlap: 200
+  embedder: "sentence-transformers"
+  embedding_model: "all-MiniLM-L6-v2"  # Lightweight model for testing
+  batch_size: 32  # Optimized for RTX A6000 GPUs
+
+performance_tracking:
+  enabled: true
+  project_name: "multi_source_pathrag"
+  phoenix_url: "http://localhost:8080"
+  debug: true
+  
+output:
+  formats:
+    pathrag:
+      backend: "networkx"
+      chunk_nodes: true
+      document_nodes: true
+      include_metadata: true
+  
+testing:
+  num_queries: 3
+  queries:
+    - "How does actor-network theory conceptualize technological agency?"
+    - "What are the key principles of feminist technoscience?"
+    - "What methods are used in science and technology studies?"

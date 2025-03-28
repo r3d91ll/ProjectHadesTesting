@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
 
-from builder import BaseProcessor
+from .builder import BaseProcessor
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.processors")

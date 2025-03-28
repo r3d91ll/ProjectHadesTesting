@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from tqdm import tqdm
 
-from builder import BaseOutputFormatter
+from .builder import BaseOutputFormatter
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.formatters")
