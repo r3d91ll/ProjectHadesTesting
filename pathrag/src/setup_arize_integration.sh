@@ -7,17 +7,17 @@ echo
 
 # Check if Arize Phoenix is running
 echo "Checking if Arize Phoenix is running..."
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health; then
-    echo "✅ Arize Phoenix is running and accessible at http://localhost:8080"
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:8084/health; then
+    echo "✅ Arize Phoenix is running and accessible at http://localhost:8084"
 else
-    echo "❌ Arize Phoenix is not accessible at http://localhost:8080"
+    echo "❌ Arize Phoenix is not accessible at http://localhost:8084"
     echo
     echo "Please start Arize Phoenix using your existing Docker configuration:"
     echo "1. Run 'docker ps -a | grep arize-phoenix' to check for existing containers"
     echo "2. If it exists but is stopped, run 'docker start <container_id>'"
     echo "3. If it doesn't exist, run your docker-compose or docker run command to start it"
     echo
-    echo "Based on your configuration, Arize Phoenix should be available at http://localhost:8080"
+    echo "Based on your configuration, Arize Phoenix should be available at http://localhost:8084"
     echo "Once Arize Phoenix is running, re-run this script to continue."
     exit 1
 fi
@@ -45,7 +45,7 @@ python3 load_database_to_arize.py --database-dir ../database
 echo
 echo "🚀 Database loaded into Arize Phoenix!"
 echo
-echo "Access the Arize Phoenix dashboard at: http://localhost:8080"
+echo "Access the Arize Phoenix dashboard at: http://localhost:8084"
 echo
 echo "In the dashboard, you can view:"
 echo "1. Knowledge Graph structure and statistics"

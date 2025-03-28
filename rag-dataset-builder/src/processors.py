@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
 
-from .builder import BaseProcessor
+from src.builder import BaseProcessor
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.processors")
@@ -69,9 +69,10 @@ class SimpleTextProcessor(BaseProcessor):
             }
         except Exception as e:
             logger.error(f"Error processing document {doc_path}: {e}")
+            # Return a basic document with an ID to avoid errors
             return {
                 "id": hashlib.md5(doc_path.encode()).hexdigest(),
-                "text": "",
+                "text": f"Error processing document: {e}",
                 "metadata": {
                     "filename": os.path.basename(doc_path),
                     "path": doc_path,

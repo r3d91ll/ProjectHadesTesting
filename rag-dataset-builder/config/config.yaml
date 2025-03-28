@@ -109,13 +109,13 @@ collection:
         - "abstract"
         - "author"
     
-    semantic_scholar:
-      enabled: true
-      api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
-      rate_limit:
-        requests_per_minute: 100
-        max_retries: 3
-        backoff_factor: 2.0
+    # semantic_scholar:
+    #   enabled: true
+    #   api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
+    #   rate_limit:
+    #     requests_per_minute: 100
+    #     max_retries: 3
+    #     backoff_factor: 2.0
     
     # pubmed:
     #   enabled: true
@@ -217,6 +217,15 @@ collection:
         - "knowledge representation"
         - "natural language processing"
         - "machine learning"
+        - "graph theory"
+        - "network analysis"
+        - "social network analysis"
+        - "complex networks"
+        - "social media analytics"
+        - "data visualization"
+        - "information visualization"
+        - "retrieval augmented generation"
+        - "graph retrieval augmented generation"
 
 # Processing configuration
 processing:
@@ -231,7 +240,7 @@ processing:
 performance_tracking:
   enabled: true
   project_name: "pathrag-dataset-builder"
-  phoenix_url: "http://0.0.0.0:8084"
+  phoenix_url: "http://localhost:8084"
   batch_size: 100
   track_document_processing: true
   track_chunking: true

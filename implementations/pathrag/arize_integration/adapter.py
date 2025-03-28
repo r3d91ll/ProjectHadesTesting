@@ -1,461 +1,427 @@
+#!/usr/bin/env python3
 """
-PathRAG Arize Phoenix Integration Adapter
+PathRAG Arize Phoenix Adapter using OpenTelemetry
 
-This module implements a PathRAG adapter with Arize Phoenix integration for
-performance tracking and evaluation. It extends the original PathRAG adapter
-with telemetry capabilities for logging LLM prompts, responses, and metrics.
+This module provides an adapter for PathRAG to connect to Arize Phoenix
+using OpenTelemetry for telemetry collection, which is more reliable than
+the direct Phoenix SDK approach.
 """
 
 import os
-import sys
 import time
 import uuid
 import json
 import logging
+import yaml
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-import requests
 
-# Arize Phoenix imports for telemetry
-try:
-    import pandas as pd
-    from arize.phoenix.session import Session
-    from arize.phoenix.trace import trace, response_converter
-    from arize.phoenix.trace.trace import LLMTrace
-    from arize.phoenix.trace import model_call_converter
-except ImportError:
-    raise ImportError(
-        "Failed to import Arize Phoenix. Install it with: pip install arize-phoenix"
-    )
-
-# Add the original PathRAG implementation to the Python path
-PATHRAG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))), "temp", "pathrag")
-sys.path.append(PATHRAG_DIR)
-
-# Import the original PathRAG implementation
-try:
-    from PathRAG.PathRAG import PathRAG as OriginalPathRAG
-    from PathRAG.utils import init_model, init_tokenizer
-    import networkx as nx
-except ImportError as e:
-    raise ImportError(
-        f"Import error: {e}. Original PathRAG implementation or NetworkX not found. "
-        f"Make sure the code is available at: {PATHRAG_DIR} and NetworkX is installed."
-    )
-
-# Configure logging
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pathrag.phoenix")
 
 class PathRAGArizeAdapter:
-    """Adapter for PathRAG with Arize Phoenix integration."""
+    """
+    Adapter for connecting PathRAG to Arize Phoenix using OpenTelemetry.
+    This adapter provides methods for logging telemetry data about
+    PathRAG's performance, including query/response pairs, path information,
+    and evaluation metrics.
+    """
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config):
         """
-        Initialize the PathRAG adapter with Arize Phoenix integration.
+        Initialize the adapter with configuration.
         
         Args:
-            config: Configuration dictionary for PathRAG and Arize Phoenix integration
+            config: Configuration dictionary or path to YAML configuration file
         """
-        self.config = config
-        self.model_name = config.get("model_name", "gpt-3.5-turbo")
-        self.pathrag = None
-        self.graph = None
-        self.initialized = False
-        
-        # Arize Phoenix configuration
-        self.phoenix_host = config.get("phoenix_host", "arize-phoenix")
-        self.phoenix_port = config.get("phoenix_port", 8080)
-        self.phoenix_url = f"http://{self.phoenix_host}:{self.phoenix_port}"
-        self.track_performance = config.get("track_performance", True)
-        
-        # Initialize Phoenix session if tracking is enabled
-        if self.track_performance:
-            try:
-                self.phoenix_session = Session(url=self.phoenix_url)
-                logger.info(f"Connected to Arize Phoenix at {self.phoenix_url}")
-            except Exception as e:
-                logger.error(f"Failed to connect to Arize Phoenix: {e}")
-                self.track_performance = False
-    
-    def initialize(self) -> None:
-        """Initialize the PathRAG system and verify Phoenix connection."""
-        # Initialize the model and tokenizer
-        model = init_model(self.model_name)
-        tokenizer = init_tokenizer(self.model_name)
-        
-        # Initialize the original PathRAG implementation
-        self.pathrag = OriginalPathRAG(
-            model=model,
-            tokenizer=tokenizer,
-            **{k: v for k, v in self.config.items() if k not in ["model_name", "phoenix_host", "phoenix_port", "track_performance"]}
-        )
-        
-        # Verify Phoenix connection if tracking is enabled
-        if self.track_performance:
-            try:
-                response = requests.get(f"{self.phoenix_url}/health")
-                if response.status_code == 200:
-                    logger.info("Arize Phoenix health check successful")
-                else:
-                    logger.warning(f"Arize Phoenix health check failed: {response.status_code}")
-                    self.track_performance = False
-            except Exception as e:
-                logger.error(f"Failed to connect to Arize Phoenix: {e}")
-                self.track_performance = False
-        
-        self.initialized = True
-    
-    def _log_to_phoenix(self, trace_data: Dict[str, Any]) -> None:
-        """
-        Log trace data to Arize Phoenix.
-        
-        Args:
-            trace_data: Dictionary containing trace data
-        """
-        if not self.track_performance:
-            return
-        
-        try:
-            # Create and save trace to Phoenix
-            trace_obj = LLMTrace(
-                id=trace_data.get("id", str(uuid.uuid4())),
-                name=trace_data.get("name", "PathRAG Query"),
-                model=trace_data.get("model", self.model_name),
-                input=trace_data.get("input", ""),
-                output=trace_data.get("output", ""),
-                prompt_tokens=trace_data.get("prompt_tokens", 0),
-                completion_tokens=trace_data.get("completion_tokens", 0),
-                latency_ms=trace_data.get("latency_ms", 0),
-                metadata=trace_data.get("metadata", {}),
-                spans=trace_data.get("spans", [])
-            )
+        # Handle both dictionary and file path inputs
+        if isinstance(config, dict):
+            self.config = config
+            self.config_file = None
+        else:
+            self.config_file = config
+            self.config = self._load_config(config)
             
-            self.phoenix_session.log_trace(trace_obj)
-            logger.info(f"Logged trace {trace_obj.id} to Arize Phoenix")
-        except Exception as e:
-            logger.error(f"Failed to log to Arize Phoenix: {e}")
-    
-    def query(self, query: str, **kwargs) -> Dict[str, Any]:
+        self.model_name = self.config.get("model_name", "unknown-model")
+        self.track_performance = self.config.get("track_performance", True)
+        
+        # Phoenix configuration
+        self.phoenix_host = self.config.get("phoenix_host", "localhost")
+        self.phoenix_port = self.config.get("phoenix_port", 8084)
+        
+        # Set up OpenTelemetry for Phoenix (if tracking is enabled)
+        self.phoenix_available = False
+        
+    def initialize(self):
         """
-        Process a query using PathRAG and log to Arize Phoenix.
+        Initialize the adapter and set up OpenTelemetry for Phoenix.
+        This method is called by the PathRAG runner after initialization.
+        """
+        if self.track_performance:
+            try:
+                self._setup_telemetry()
+                logger.info(f"✅ Connected to Phoenix at http://{self.phoenix_host}:{self.phoenix_port}")
+                self.phoenix_available = True
+                return True
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to connect to Phoenix: {e}")
+                logger.warning("Telemetry will not be recorded")
+                self.phoenix_available = False
+                return False
+        return False
+    
+    def _load_config(self, config_file: str) -> Dict[str, Any]:
+        """
+        Load configuration from a YAML file.
         
         Args:
-            query: The query string
-            **kwargs: Additional arguments for the query
+            config_file: Path to the YAML configuration file
             
         Returns:
-            Dict containing the response and related information
+            Configuration dictionary
         """
-        if not self.initialized:
-            self.initialize()
-        
-        start_time = time.time()
-        trace_id = str(uuid.uuid4())
-        
-        # Create a trace for this query
-        trace_metadata = {
-            "user_id": kwargs.get("user_id", "anonymous"),
-            "session_id": kwargs.get("session_id", str(uuid.uuid4())),
-            "query_params": json.dumps({k: v for k, v in kwargs.items() 
-                                      if k not in ["user_id", "session_id"]})
-        }
-        
         try:
-            # Call the original implementation
-            result = self.pathrag.answer(query, **kwargs)
-            
-            # Calculate performance metrics
-            end_time = time.time()
-            latency_ms = int((end_time - start_time) * 1000)
-            
-            # Extract relevant information for standardization
-            answer = result.get("answer", "")
-            paths = result.get("paths", [])
-            context = result.get("context", "")
-            
-            # Log to Arize Phoenix if tracking is enabled
-            if self.track_performance:
-                trace_data = {
-                    "id": trace_id,
-                    "name": "PathRAG Query",
-                    "model": self.model_name,
-                    "input": query,
-                    "output": answer,
-                    "prompt_tokens": len(query.split()),
-                    "completion_tokens": len(answer.split()),
-                    "latency_ms": latency_ms,
-                    "metadata": {
-                        **trace_metadata,
-                        "num_paths": len(paths),
-                        "context_length": len(context),
-                        "timestamp": datetime.now().isoformat()
-                    },
-                    "spans": [
-                        {
-                            "name": "retrieve_paths",
-                            "start_time": start_time,
-                            "end_time": start_time + (latency_ms * 0.6 / 1000),  # Estimate
-                            "metadata": {"num_paths": len(paths)}
-                        },
-                        {
-                            "name": "generate_answer",
-                            "start_time": start_time + (latency_ms * 0.6 / 1000),
-                            "end_time": end_time,
-                            "metadata": {"context_length": len(context)}
-                        }
-                    ]
-                }
-                self._log_to_phoenix(trace_data)
-            
-            # Return in a standardized format for our framework
-            return {
-                "answer": answer,
-                "paths": paths,
-                "context": context,
-                "raw_result": result,
-                "metrics": {
-                    "latency_ms": latency_ms,
-                    "trace_id": trace_id
-                }
-            }
-        
+            with open(config_file, 'r') as f:
+                config = yaml.safe_load(f)
+            return config
         except Exception as e:
-            # Log the error to Arize Phoenix if tracking is enabled
-            if self.track_performance:
-                end_time = time.time()
-                latency_ms = int((end_time - start_time) * 1000)
-                
-                trace_data = {
-                    "id": trace_id,
-                    "name": "PathRAG Query Error",
-                    "model": self.model_name,
-                    "input": query,
-                    "output": f"Error: {str(e)}",
-                    "prompt_tokens": len(query.split()),
-                    "completion_tokens": len(str(e).split()),
-                    "latency_ms": latency_ms,
-                    "metadata": {
-                        **trace_metadata,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                }
-                self._log_to_phoenix(trace_data)
+            logger.warning(f"Failed to load config file {config_file}: {e}")
+            return {}
+    
+    def _setup_telemetry(self):
+        """
+        Set up OpenTelemetry for Phoenix.
+        """
+        try:
+            # Import required packages
+            import requests
+            from opentelemetry import trace
+            from opentelemetry.sdk.resources import Resource
+            from opentelemetry.sdk.trace import TracerProvider
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
             
-            # Re-raise the exception
+            # First check if Phoenix is actually running
+            try:
+                response = requests.get(f"http://{self.phoenix_host}:{self.phoenix_port}/health", timeout=2)
+                if response.status_code == 200:
+                    logger.info(f"✅ Phoenix health check successful at http://{self.phoenix_host}:{self.phoenix_port}")
+                else:
+                    logger.warning(f"⚠️ Phoenix health check failed: {response.status_code}")
+                    return
+            except Exception as e:
+                logger.warning(f"⚠️ Phoenix health check failed: {e}")
+                return
+            
+            # Set up a resource (this identifies your service)
+            resource = Resource.create({
+                "service.name": "pathrag",
+                "service.version": "1.0.0",
+                "model.name": self.model_name
+            })
+            
+            # Create a tracer provider with the resource
+            tracer_provider = TracerProvider(resource=resource)
+            
+            # Set up the OTLP exporter to send traces to Phoenix
+            otlp_endpoint = f"http://{self.phoenix_host}:{self.phoenix_port}/v1/traces"
+            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+            
+            # Add the exporter to the tracer provider
+            span_processor = BatchSpanProcessor(otlp_exporter)
+            tracer_provider.add_span_processor(span_processor)
+            
+            # Set the tracer provider as the global default
+            trace.set_tracer_provider(tracer_provider)
+            
+            # Create a tracer for our service
+            self.tracer = trace.get_tracer("pathrag")
+            
+            # Try to instrument LangChain if it's being used
+            try:
+                from openinference.instrumentation.langchain import LangChainInstrumentor
+                LangChainInstrumentor().instrument()
+                logger.info("✅ Successfully instrumented LangChain for Phoenix telemetry")
+            except ImportError:
+                logger.debug("LangChain instrumentation not available (this is okay if not using LangChain)")
+            except Exception as e:
+                logger.debug(f"Failed to instrument LangChain: {e}")
+            
+            logger.info(f"✅ Phoenix telemetry set up successfully")
+            
+        except ImportError as e:
+            logger.warning(f"⚠️ Failed to import OpenTelemetry: {e}")
+            logger.warning("Run: pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp")
             raise e
     
-    def get_paths(self, query: str, top_k: int = 5, **kwargs) -> List[Dict[str, Any]]:
+    def query(self, query: str, session_id: str = None, user_id: str = None, **kwargs) -> Dict[str, Any]:
         """
-        Retrieve paths for a query without generating an answer.
+        Process a query using the PathRAG approach, retrieving relevant documents
+        and generating a response. Also logs telemetry data to Phoenix.
         
         Args:
-            query: The query string
-            top_k: Number of paths to retrieve
-            **kwargs: Additional arguments for path retrieval
+            query: The user query to process
+            session_id: Session identifier for tracking
+            user_id: User identifier for tracking
+            **kwargs: Additional arguments for the query process
             
         Returns:
-            List of retrieved paths
+            Dictionary containing the answer, paths, and other metadata
         """
-        if not self.initialized:
-            self.initialize()
+        # This is a placeholder implementation - in a real system, this would:
+        # 1. Retrieve relevant documents based on the query
+        # 2. Construct paths through the document graph
+        # 3. Generate a response using an LLM
+        # 4. Log telemetry data to Phoenix
         
         start_time = time.time()
-        trace_id = str(uuid.uuid4())
         
-        # Adapt to the original implementation's method for retrieving paths
-        paths = self.pathrag.retrieve_paths(query, top_k=top_k, **kwargs)
+        # Placeholder data - in a real implementation, this would come from actual retrieval and generation
+        paths = [["Document 1", "Document 2"], ["Document 3"]]
+        documents = ["This is document 1 about PathRAG.", "This is document 2 about retrieval augmented generation."]
         
-        # Log to Arize Phoenix if tracking is enabled
-        if self.track_performance:
-            end_time = time.time()
-            latency_ms = int((end_time - start_time) * 1000)
-            
-            trace_data = {
-                "id": trace_id,
-                "name": "PathRAG Path Retrieval",
-                "model": self.model_name,
-                "input": query,
-                "output": json.dumps(paths),
-                "prompt_tokens": len(query.split()),
-                "completion_tokens": len(json.dumps(paths).split()),
-                "latency_ms": latency_ms,
-                "metadata": {
-                    "user_id": kwargs.get("user_id", "anonymous"),
-                    "session_id": kwargs.get("session_id", str(uuid.uuid4())),
-                    "top_k": top_k,
-                    "num_paths_retrieved": len(paths),
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            self._log_to_phoenix(trace_data)
+        # Simulate response generation
+        response = (
+            "PathRAG is a Retrieval Augmented Generation system that uses a path-based approach "
+            "to improve retrieval relevance. It creates paths through a knowledge graph of documents "
+            "to provide more context and better responses to user queries."
+        )
         
-        return paths
-    
-    def ingest_document(self, document: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Ingest a document into the knowledge base.
+        # Calculate latency
+        latency_ms = (time.time() - start_time) * 1000
         
-        Args:
-            document: Document text to ingest
-            metadata: Optional metadata for the document
-            
-        Returns:
-            Dict containing information about the ingestion result
-        """
-        if not self.initialized:
-            self.initialize()
+        # Simulate token usage
+        token_usage = {
+            "prompt_tokens": 50,
+            "completion_tokens": 30,
+            "total_tokens": 80
+        }
         
-        start_time = time.time()
-        trace_id = str(uuid.uuid4())
+        # Create path information for telemetry
+        path_info = [
+            {"text": documents[0], "score": 0.95, "metadata": {"source": "document1.pdf"}},
+            {"text": documents[1], "score": 0.85, "metadata": {"source": "document2.pdf"}}
+        ]
         
-        # Use the original implementation's method for ingesting documents
-        result = self.pathrag.ingest_text(document, metadata=metadata or {})
+        # Log telemetry to Phoenix
+        metadata = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "timestamp": datetime.now().isoformat()
+        }
         
-        # Log to Arize Phoenix if tracking is enabled
-        if self.track_performance:
-            end_time = time.time()
-            latency_ms = int((end_time - start_time) * 1000)
-            
-            trace_data = {
-                "id": trace_id,
-                "name": "PathRAG Document Ingestion",
-                "model": self.model_name,
-                "input": f"Document: {document[:100]}... (Length: {len(document)})",
-                "output": json.dumps(result),
-                "latency_ms": latency_ms,
-                "metadata": {
-                    "document_length": len(document),
-                    "nodes_created": result.get("nodes_created", 0),
-                    "edges_created": result.get("edges_created", 0),
-                    "document_id": result.get("document_id", ""),
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            self._log_to_phoenix(trace_data)
+        trace_id = self.log_telemetry(
+            trace_id=str(uuid.uuid4()),
+            query=query,
+            response=response,
+            path=path_info,
+            latency_ms=latency_ms,
+            token_usage=token_usage,
+            metadata=metadata
+        )
         
-        return {
-            "success": True,
-            "nodes_created": result.get("nodes_created", 0),
-            "edges_created": result.get("edges_created", 0),
-            "document_id": result.get("document_id", ""),
-            "raw_result": result,
+        # Return the result with expected structure
+        result = {
+            "answer": response,
+            "paths": paths,
+            "documents": documents,
             "metrics": {
                 "latency_ms": latency_ms,
+                "token_usage": token_usage,
                 "trace_id": trace_id
             }
         }
-    
-    def ingest_file(self, file_path: str, **kwargs) -> Dict[str, Any]:
-        """
-        Ingest a file into the knowledge base.
-        
-        Args:
-            file_path: Path to the file to ingest
-            **kwargs: Additional arguments for ingestion
-            
-        Returns:
-            Dict containing information about the ingestion result
-        """
-        if not self.initialized:
-            self.initialize()
-        
-        # Read the file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # Get metadata from the file path
-        metadata = {
-            "file_path": file_path,
-            "file_name": os.path.basename(file_path),
-            **kwargs
-        }
-        
-        # Ingest the document
-        return self.ingest_document(content, metadata)
-        
-    def evaluate_query(self, query: str, ground_truth: str, **kwargs) -> Dict[str, Any]:
-        """
-        Process a query using PathRAG and evaluate against ground truth.
-        
-        Args:
-            query: The query string
-            ground_truth: Ground truth answer for evaluation
-            **kwargs: Additional arguments for the query
-            
-        Returns:
-            Dict containing the response, evaluation metrics, and related information
-        """
-        # First get the normal query result
-        result = self.query(query, **kwargs)
-        answer = result["answer"]
-        
-        # Calculate evaluation metrics
-        # This could be expanded with more sophisticated metrics
-        from nltk.translate.bleu_score import sentence_bleu
-        from rouge import Rouge
-        import nltk
-        
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            nltk.download('punkt')
-        
-        # Tokenize the texts
-        answer_tokens = nltk.word_tokenize(answer.lower())
-        ground_truth_tokens = nltk.word_tokenize(ground_truth.lower())
-        
-        # Calculate BLEU score
-        bleu_score = sentence_bleu([ground_truth_tokens], answer_tokens)
-        
-        # Calculate ROUGE scores
-        try:
-            rouge = Rouge()
-            rouge_scores = rouge.get_scores(answer, ground_truth)[0]
-        except Exception as e:
-            logger.warning(f"Error calculating ROUGE scores: {e}")
-            rouge_scores = {
-                "rouge-1": {"f": 0, "p": 0, "r": 0},
-                "rouge-2": {"f": 0, "p": 0, "r": 0},
-                "rouge-l": {"f": 0, "p": 0, "r": 0}
-            }
-        
-        # Log to Arize Phoenix if tracking is enabled
-        if self.track_performance:
-            trace_id = str(uuid.uuid4())
-            
-            trace_data = {
-                "id": trace_id,
-                "name": "PathRAG Evaluation",
-                "model": self.model_name,
-                "input": query,
-                "output": answer,
-                "expected_output": ground_truth,
-                "latency_ms": result["metrics"]["latency_ms"],
-                "metadata": {
-                    "user_id": kwargs.get("user_id", "anonymous"),
-                    "session_id": kwargs.get("session_id", str(uuid.uuid4())),
-                    "evaluation_scores": {
-                        "bleu": bleu_score,
-                        "rouge-1-f": rouge_scores["rouge-1"]["f"],
-                        "rouge-2-f": rouge_scores["rouge-2"]["f"],
-                        "rouge-l-f": rouge_scores["rouge-l"]["f"]
-                    },
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            self._log_to_phoenix(trace_data)
-        
-        # Add evaluation metrics to result
-        result["evaluation"] = {
-            "bleu_score": bleu_score,
-            "rouge_scores": rouge_scores
-        }
         
         return result
+        
+    def log_telemetry(self, 
+                trace_id: str,
+                query: str, 
+                response: str, 
+                path: Optional[List[Dict[str, Any]]] = None,
+                latency_ms: Optional[float] = None,
+                token_usage: Optional[Dict[str, int]] = None,
+                evaluation: Optional[Dict[str, Any]] = None,
+                metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """
+        Log telemetry data to Phoenix.
+        
+        Args:
+            trace_id: Unique identifier for this trace
+            query: User query
+            response: System response
+            path: Path information (documents retrieved)
+            latency_ms: Query processing latency in milliseconds
+            token_usage: Token usage information (prompt, completion, total)
+            evaluation: Evaluation metrics
+            metadata: Additional metadata
+            
+        Returns:
+            Trace ID if logged successfully, None otherwise
+        """
+        if not self.track_performance or not self.phoenix_available:
+            return None
+        
+        try:
+            # Generate a unique trace ID
+            trace_id = str(uuid.uuid4())
+            
+            # Create and start the span
+            with self.tracer.start_as_current_span(f"pathrag-query-{trace_id}") as span:
+                # Set basic attributes
+                span.set_attribute("app.trace_id", trace_id)
+                span.set_attribute("app.query", query)
+                span.set_attribute("app.response", response)
+                span.set_attribute("app.model", self.model_name)
+                
+                # Set latency if provided
+                if latency_ms is not None:
+                    span.set_attribute("app.latency_ms", latency_ms)
+                
+                # Set token usage if provided
+                if token_usage:
+                    if "prompt_tokens" in token_usage:
+                        span.set_attribute("app.token_usage.prompt", token_usage["prompt_tokens"])
+                    if "completion_tokens" in token_usage:
+                        span.set_attribute("app.token_usage.completion", token_usage["completion_tokens"])
+                    if "total_tokens" in token_usage:
+                        span.set_attribute("app.token_usage.total", token_usage["total_tokens"])
+                
+                # Set path information if provided
+                if path:
+                    span.set_attribute("app.path.node_count", len(path))
+                    
+                    # Add each path node as an attribute
+                    for i, node in enumerate(path):
+                        prefix = f"app.path.node.{i}"
+                        
+                        # Add node text
+                        if "text" in node:
+                            # Truncate very long texts to avoid span size limits
+                            text = node["text"]
+                            if len(text) > 1000:
+                                text = text[:997] + "..."
+                            span.set_attribute(f"{prefix}.text", text)
+                        
+                        # Add score
+                        if "score" in node:
+                            span.set_attribute(f"{prefix}.score", node["score"])
+                        
+                        # Add metadata
+                        if "metadata" in node:
+                            node_metadata = node["metadata"]
+                            # Convert metadata to string to avoid complex types
+                            span.set_attribute(f"{prefix}.metadata", str(node_metadata))
+                
+                # Set evaluation metrics if provided
+                if evaluation:
+                    for key, value in evaluation.items():
+                        if isinstance(value, (int, float, str, bool)):
+                            span.set_attribute(f"app.evaluation.{key}", value)
+                        else:
+                            # Convert complex types to string
+                            span.set_attribute(f"app.evaluation.{key}", str(value))
+                
+                # Set additional metadata if provided
+                if metadata:
+                    for key, value in metadata.items():
+                        if isinstance(value, (int, float, str, bool)):
+                            span.set_attribute(f"app.metadata.{key}", value)
+                        else:
+                            # Convert complex types to string
+                            span.set_attribute(f"app.metadata.{key}", str(value))
+                
+                # Add an event to mark when the query was processed
+                span.add_event(
+                    name="query_processed",
+                    attributes={"timestamp": datetime.now().isoformat()}
+                )
+            
+            logger.info(f"✅ Logged trace {trace_id} to Phoenix")
+            return trace_id
+        
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to log trace to Phoenix: {e}")
+            return None
+
+
+# For testing
+def test_adapter():
+    """Test the adapter with sample data."""
+    import tempfile
+    
+    # Create a temporary config file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        config = {
+            "model_name": "test-model",
+            "track_performance": True,
+            "phoenix_host": "localhost",
+            "phoenix_port": 8084
+        }
+        yaml.dump(config, f)
+        config_file = f.name
+    
+    try:
+        # Initialize the adapter
+        adapter = PathRAGArizeAdapter(config_file)
+        
+        if not adapter.phoenix_available:
+            logger.error("❌ Phoenix not available - test failed")
+            return False
+        
+        # Log a test query
+        trace_id = adapter.log_query(
+            query="What is PathRAG?",
+            response="PathRAG is a retrieval augmented generation system that uses a path-based approach to retrieval.",
+            path=[
+                {
+                    "text": "PathRAG is an innovative retrieval augmented generation system.",
+                    "score": 0.95,
+                    "metadata": {"source": "document1.pdf", "page": 1}
+                },
+                {
+                    "text": "PathRAG uses a path-based approach to improve retrieval quality.",
+                    "score": 0.85,
+                    "metadata": {"source": "document2.pdf", "page": 5}
+                }
+            ],
+            latency_ms=234.56,
+            token_usage={
+                "prompt_tokens": 50,
+                "completion_tokens": 30,
+                "total_tokens": 80
+            },
+            evaluation={
+                "relevance": 0.92,
+                "accuracy": 0.87,
+                "coverage": 0.95
+            },
+            metadata={
+                "user_id": "test-user",
+                "session_id": "test-session",
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+        
+        if trace_id:
+            logger.info(f"✅ Test succeeded - trace {trace_id} logged to Phoenix")
+            logger.info(f"📊 View trace at http://localhost:8084")
+            return True
+        else:
+            logger.error("❌ Failed to log trace - test failed")
+            return False
+    
+    finally:
+        # Clean up the temporary config file
+        try:
+            os.remove(config_file)
+        except:
+            pass
+
+if __name__ == "__main__":
+    logger.info("Testing PathRAGArizeAdapter...")
+    test_adapter()

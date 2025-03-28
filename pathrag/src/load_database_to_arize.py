@@ -52,7 +52,7 @@ class PathRAGDatabaseLoader:
     Utility for loading PathRAG database into Arize Phoenix for visualization and analytics.
     """
     
-    def __init__(self, database_dir: str, phoenix_host: str = "localhost", phoenix_port: int = 8080):
+    def __init__(self, database_dir: str, phoenix_host: str = "localhost", phoenix_port: int = 8084):
         """
         Initialize the PathRAG database loader.
         
@@ -301,7 +301,7 @@ def main():
                       help="Path to the PathRAG database directory")
     parser.add_argument("--phoenix-host", type=str, default="localhost",
                       help="Arize Phoenix host")
-    parser.add_argument("--phoenix-port", type=int, default=8080,
+    parser.add_argument("--phoenix-port", type=int, default=8084,
                       help="Arize Phoenix port")
     
     args = parser.parse_args()

@@ -12,23 +12,73 @@ import logging
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 
+# Define fallback classes for when Phoenix client is not available
+class RecordType:
+    DOCUMENT = "document"
+    DOCUMENT_PROCESSING = "document_processing"
+    EMBEDDING_GENERATION = "embedding_generation"
+    CHUNKING = "chunking"
+    QUERY = "query"
+    RESPONSE = "response"
+    EVALUATION = "evaluation"
+
+class Metric:
+    """Placeholder for Arize Phoenix Metric class when client is not available"""
+    def __init__(self, value):
+        self.value = value
+
+class Document:
+    """Placeholder for Arize Phoenix Document class when client is not available"""
+    def __init__(self, text=None):
+        self.text = text
+        
+class Record:
+    """Placeholder for Arize Phoenix Record class when client is not available"""
+    def __init__(self, id=None, record_type=None, timestamp=None, features=None, document=None, metadata=None, metrics=None):
+        self.id = id
+        self.record_type = record_type
+        self.timestamp = timestamp
+        self.features = features or {}
+        self.document = document
+        self.metadata = metadata or {}
+        self.metrics = metrics or {}
+
+# Try to import the Phoenix OpenTelemetry integration first (recommended approach)
+try:
+    from phoenix.otel import register  # Import from phoenix.otel instead of arize.phoenix.otel
+    from opentelemetry import trace
+    PHOENIX_OTEL_AVAILABLE = True
+    logging.info("✅ Phoenix OpenTelemetry integration successfully imported")
+except ImportError:
+    PHOENIX_OTEL_AVAILABLE = False
+    logging.warning("⚠️ Phoenix OpenTelemetry integration not available. Run 'pip install arize-phoenix-otel' to enable.")
+
+# Fall back to direct client if OpenTelemetry is not available
 try:
     from arize.phoenix.client import Client
     from arize.phoenix.types import (
         Embedding,
         Metric,
-        Record,
-        RecordType,
+        Record as PhoenixRecord,
+        RecordType as PhoenixRecordType,
         Document,
         Query,
         Response,
         RetrievalResult,
         DistanceType
     )
-    PHOENIX_AVAILABLE = True
+    # Use the Phoenix types instead of our placeholder
+    Record = PhoenixRecord
+    RecordType = PhoenixRecordType
+    # No need to reassign Metric and Document as they're already imported
+    PHOENIX_CLIENT_AVAILABLE = True
 except ImportError:
-    PHOENIX_AVAILABLE = False
-    logging.warning("Arize Phoenix not installed. Run 'pip install arize-phoenix' to enable performance tracking.")
+    PHOENIX_CLIENT_AVAILABLE = False
+    # Keep using our placeholder classes
+    if not PHOENIX_OTEL_AVAILABLE:
+        logging.warning("Arize Phoenix not installed. Run 'pip install arize-phoenix' to enable performance tracking.")
+
+PHOENIX_AVAILABLE = PHOENIX_OTEL_AVAILABLE or PHOENIX_CLIENT_AVAILABLE
 
 class RAGDatasetBuilderArizeAdapter:
     """
@@ -37,9 +87,9 @@ class RAGDatasetBuilderArizeAdapter:
     
     def __init__(
         self, 
-        project_name: str = "rag_dataset_builder",
+        project_name: str = "pathrag-dataset-builder",
         enabled: bool = True,
-        phoenix_url: str = "http://localhost:8080",
+        phoenix_url: str = "http://localhost:8084",
         batch_size: int = 100
     ):
         """
@@ -55,10 +105,40 @@ class RAGDatasetBuilderArizeAdapter:
         self.project_name = project_name
         self.batch_size = batch_size
         self.pending_records = []
+        self.traced_operations = {}
         
-        if self.enabled:
+        # Initialize OpenTelemetry tracer if available (recommended approach)
+        if self.enabled and PHOENIX_OTEL_AVAILABLE:
+            # Extract endpoint path for OpenTelemetry
+            if not phoenix_url.endswith("/v1/traces"):
+                endpoint = f"{phoenix_url}/v1/traces"
+            else:
+                endpoint = phoenix_url
+            
+            logging.info(f"🔍 Setting up Phoenix OpenTelemetry with project name: {self.project_name}")
+            logging.info(f"🔍 Using Phoenix endpoint: {endpoint}")
+                
+            # Register the Phoenix tracer provider
+            self.tracer_provider = register(
+                project_name=self.project_name,
+                endpoint=endpoint
+            )
+            self.tracer = trace.get_tracer("rag-dataset-builder-tracer")
+            logging.info(f"✅ Arize Phoenix OpenTelemetry integration enabled. Project: {self.project_name}")
+            logging.info(f"Dashboard available at {phoenix_url}")
+            
+            # Send a test trace to verify integration
+            with self.tracer.start_as_current_span("phoenix-integration-test") as span:
+                span.set_attribute("test", True)
+                span.set_attribute("project", self.project_name)
+                span.add_event("Integration test")
+                logging.info(f"🔍 Sent test trace to Phoenix project '{self.project_name}'")
+        
+        # Fall back to direct client if OpenTelemetry is not available
+        elif self.enabled and PHOENIX_CLIENT_AVAILABLE:
             self.client = Client(url=phoenix_url)
-            logging.info(f"Arize Phoenix integration enabled. Dashboard available at {phoenix_url}")
+            logging.warning("⚠️ Using Phoenix Client API instead of recommended OpenTelemetry integration.")
+            logging.info(f"Arize Phoenix Client integration enabled. Dashboard available at {phoenix_url}")
         else:
             self.client = None
             if enabled and not PHOENIX_AVAILABLE:
@@ -66,6 +146,57 @@ class RAGDatasetBuilderArizeAdapter:
                     "Performance tracking is enabled but Arize Phoenix is not installed. "
                     "Run 'pip install arize-phoenix' to enable tracking."
                 )
+    
+    def _create_trace_span(self, operation_name, attributes=None):
+        """Create and return a new trace span for the given operation"""
+        if not self.enabled or not PHOENIX_OTEL_AVAILABLE:
+            return None
+            
+        try:
+            # Create a span for this operation
+            span = self.tracer.start_span(operation_name)
+            
+            # Add common attributes
+            span.set_attribute("project", self.project_name)
+            span.set_attribute("timestamp", datetime.now().isoformat())
+            
+            # Add operation-specific attributes
+            if attributes:
+                for key, value in attributes.items():
+                    if isinstance(value, (str, int, float, bool)):
+                        span.set_attribute(key, value)
+                    elif isinstance(value, (list, tuple)) and all(isinstance(x, (int, float)) for x in value):
+                        # Only add numeric lists (like embeddings)
+                        continue  # Skip large vectors
+                    elif value is not None:
+                        span.set_attribute(key, str(value))
+            
+            # Log the trace creation
+            logging.info(f"📊 Created Phoenix trace: {operation_name}")
+            return span
+        except Exception as e:
+            logging.error(f"❌ Failed to create trace span: {e}")
+            return None
+            
+    def _end_trace_span(self, span, success=True, error=None):
+        """End a trace span with success/error information"""
+        if span is None:
+            return
+            
+        try:
+            # Add completion status
+            span.set_attribute("success", success)
+            if error:
+                span.set_attribute("error", str(error))
+                span.add_event("Error", {"message": str(error)})
+            else:
+                span.add_event("Completed")
+                
+            # End the span
+            span.end()
+            logging.info(f"📊 Completed Phoenix trace{' with error' if error else ''}")
+        except Exception as e:
+            logging.error(f"❌ Failed to end trace span: {e}")
     
     def track_document_processing(
         self,
@@ -93,7 +224,39 @@ class RAGDatasetBuilderArizeAdapter:
         """
         if not self.enabled:
             return
+
+        # For OpenTelemetry approach, create and record spans
+        if PHOENIX_OTEL_AVAILABLE and hasattr(self, 'tracer'):
+            # Create a span for document processing
+            doc_name = os.path.basename(document_path)
+            with self.tracer.start_as_current_span(f"process-document-{doc_name}") as span:
+                # Add document attributes
+                span.set_attribute("document.id", document_id)
+                span.set_attribute("document.path", document_path)
+                span.set_attribute("document.type", document_type)
+                span.set_attribute("document.size_bytes", document_size)
+                span.set_attribute("processing.time_seconds", processing_time)
+                span.set_attribute("success", success)
+                
+                # Add all metadata as attributes
+                for key, value in metadata.items():
+                    # Convert to string to ensure compatibility
+                    span.set_attribute(f"metadata.{key}", str(value))
+                
+                if error:
+                    span.set_attribute("error", True)
+                    span.set_attribute("error.message", error)
+                    span.record_exception(Exception(error))
+                
+                span.add_event("Document processing complete", {
+                    "success": success,
+                    "processing_time": processing_time
+                })
+                
+                logging.info(f"📊 Recorded document processing trace for {doc_name} in project '{self.project_name}'")
+            return
             
+        # For Client API approach, use records
         metrics = {
             "processing_time_seconds": Metric(processing_time),
             "document_size_bytes": Metric(document_size),
@@ -147,6 +310,36 @@ class RAGDatasetBuilderArizeAdapter:
         if not self.enabled:
             return
             
+        # For OpenTelemetry approach, create and record spans
+        if PHOENIX_OTEL_AVAILABLE and hasattr(self, 'tracer'):
+            with self.tracer.start_as_current_span(f"chunk-document-{document_id}") as span:
+                # Add chunking attributes
+                span.set_attribute("document.id", document_id)
+                span.set_attribute("chunker.type", chunker_type)
+                span.set_attribute("chunks.count", num_chunks)
+                span.set_attribute("chunks.avg_size", avg_chunk_size)
+                span.set_attribute("chunking.time_seconds", chunking_time)
+                span.set_attribute("success", success)
+                
+                # Add chunk size histogram (up to 10 samples to avoid too many attributes)
+                for i, size in enumerate(chunk_sizes[:10]):
+                    span.set_attribute(f"chunks.size_{i}", size)
+                
+                if error:
+                    span.set_attribute("error", True)
+                    span.set_attribute("error.message", error)
+                    span.record_exception(Exception(error))
+                
+                span.add_event("Document chunking complete", {
+                    "success": success,
+                    "chunking_time": chunking_time,
+                    "num_chunks": num_chunks
+                })
+                
+                logging.info(f"📊 Recorded chunking trace for document {document_id} in project '{self.project_name}'")
+            return
+            
+        # For Client API approach, use records
         metrics = {
             "num_chunks": Metric(num_chunks),
             "avg_chunk_size": Metric(avg_chunk_size),
@@ -202,6 +395,37 @@ class RAGDatasetBuilderArizeAdapter:
         if not self.enabled:
             return
             
+        # For OpenTelemetry approach, create and record spans
+        if PHOENIX_OTEL_AVAILABLE and hasattr(self, 'tracer'):
+            with self.tracer.start_as_current_span(f"generate-embedding-{chunk_id}") as span:
+                # Add embedding attributes
+                span.set_attribute("chunk.id", chunk_id)
+                span.set_attribute("document.id", document_id)
+                span.set_attribute("embedder.type", embedder_type)
+                span.set_attribute("embedding.model", embedding_model)
+                span.set_attribute("embedding.dimensions", embedding_dimensions)
+                span.set_attribute("embedding.time_seconds", embedding_time)
+                span.set_attribute("success", success)
+                
+                # Add a few embedding values as a sample (first 5)
+                for i, val in enumerate(embedding[:5]):
+                    span.set_attribute(f"embedding.sample_{i}", val)
+                
+                if error:
+                    span.set_attribute("error", True)
+                    span.set_attribute("error.message", error)
+                    span.record_exception(Exception(error))
+                
+                span.add_event("Embedding generation complete", {
+                    "success": success,
+                    "embedding_time": embedding_time,
+                    "embedding_dimensions": embedding_dimensions
+                })
+                
+                logging.info(f"📊 Recorded embedding trace for chunk {chunk_id} in project '{self.project_name}'")
+            return
+            
+        # For Client API approach, use records
         metrics = {
             "embedding_dimensions": Metric(embedding_dimensions),
             "embedding_time_seconds": Metric(embedding_time),
@@ -355,13 +579,24 @@ class RAGDatasetBuilderArizeAdapter:
         """Flush all pending records to Arize Phoenix."""
         if not self.enabled or not self.pending_records:
             return
+        
+        # If we're using the OpenTelemetry integration, we don't need to flush
+        # as spans are automatically exported
+        if PHOENIX_OTEL_AVAILABLE:
+            # Pending records aren't needed with OpenTelemetry
+            self.pending_records = []
+            return
             
         try:
+            # Log before sending for debugging
+            logging.info(f"Sending {len(self.pending_records)} records to Arize Phoenix project '{self.project_name}'")
+            
+            # Always use the consistent project name
             self.client.log_records(
                 project_name=self.project_name,
                 records=self.pending_records
             )
-            logging.debug(f"Sent {len(self.pending_records)} records to Arize Phoenix")
+            logging.info(f"✅ Successfully sent {len(self.pending_records)} records to Arize Phoenix project '{self.project_name}'")
             self.pending_records = []
         except Exception as e:
             logging.error(f"Failed to send records to Arize Phoenix: {str(e)}")
@@ -386,11 +621,26 @@ def get_arize_adapter(config: Dict[str, Any]) -> Union[RAGDatasetBuilderArizeAda
     
     if not enabled:
         return None
-        
+    
+    # Get project name from config first, then environment variable, then default
+    project_name = tracking_config.get(
+        "project_name",
+        os.environ.get("PHOENIX_PROJECT_NAME", "pathrag-dataset-builder")
+    )
+    
+    # Get Phoenix URL from config first, then environment variable, then default
+    phoenix_url = tracking_config.get(
+        "phoenix_url",
+        os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:8084")
+    )
+    
+    logging.info(f"Initializing Arize Phoenix adapter with project: {project_name}")
+    logging.info(f"Phoenix endpoint: {phoenix_url}")
+    
     return RAGDatasetBuilderArizeAdapter(
-        project_name=tracking_config.get("project_name", "rag_dataset_builder"),
+        project_name=project_name,
         enabled=True,
-        phoenix_url=tracking_config.get("phoenix_url", "http://localhost:8080"),
+        phoenix_url=phoenix_url,
         batch_size=tracking_config.get("batch_size", 100)
     )
 
@@ -402,7 +652,7 @@ if __name__ == "__main__":
         "performance_tracking": {
             "enabled": True,
             "project_name": "rag_dataset_builder",
-            "phoenix_url": "http://localhost:8080",
+            "phoenix_url": "http://localhost:8084",
             "batch_size": 50
         }
     }

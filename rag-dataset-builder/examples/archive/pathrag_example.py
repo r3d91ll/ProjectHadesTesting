@@ -77,7 +77,7 @@ monitoring:
   arize_phoenix:
     enabled: true
     project_name: "pathrag-example"
-    server_port: 8080
+    server_port: 8084
     track_system_resources: true
     track_gpu_metrics: true
 """)
@@ -106,7 +106,7 @@ def main():
     if config.get("monitoring", {}).get("arize_phoenix", {}).get("enabled", False):
         tracker = ArizePhoenixTracker(
             project_name=config["monitoring"]["arize_phoenix"].get("project_name", "pathrag-example"),
-            server_port=config["monitoring"]["arize_phoenix"].get("server_port", 8080)
+            server_port=config["monitoring"]["arize_phoenix"].get("server_port", 8084)
         )
     
     # Initialize PathRAG
@@ -138,7 +138,7 @@ def main():
     print("2. Call pathrag.process_documents()")
     print("3. For retrieval, use pathrag.retrieve(query)")
     print("\nTo view Arize Phoenix monitoring dashboard (if enabled):")
-    print("  http://localhost:8080\n")
+    print("  http://localhost:8084\n")
 
 if __name__ == "__main__":
     main()

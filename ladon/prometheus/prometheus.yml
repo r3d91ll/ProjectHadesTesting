@@ -18,7 +18,7 @@ scrape_configs:
 
   - job_name: 'cadvisor'
     static_configs:
-      - targets: ['cadvisor:8080']
+      - targets: ['cadvisor:8084']
 
   - job_name: 'process-exporter'
     static_configs:

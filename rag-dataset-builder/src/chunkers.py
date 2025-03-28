@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import nltk
 from nltk.tokenize import sent_tokenize
 
-from .builder import BaseChunker
+from src.builder import BaseChunker
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.chunkers")
@@ -23,6 +23,17 @@ try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
     nltk.download('punkt')
+
+# Also ensure punkt_tab is available (needed for PDF processing)
+try:
+    nltk.data.find('tokenizers/punkt_tab')
+except LookupError:
+    nltk.download('punkt_tab')
+    
+    # Set NLTK_DATA environment variable to include our custom path
+    import os
+    nltk_data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'nltk_data')
+    os.environ['NLTK_DATA'] = nltk_data_dir if not 'NLTK_DATA' in os.environ else f"{nltk_data_dir}:{os.environ['NLTK_DATA']}"
 
 
 class SlidingWindowChunker(BaseChunker):
@@ -136,16 +147,24 @@ class SlidingWindowChunker(BaseChunker):
 class SemanticChunker(BaseChunker):
     """Chunker that tries to preserve semantic units like paragraphs and sentences."""
     
-    def __init__(self, max_chunk_size: int = 1000, min_chunk_size: int = 100):
+    def __init__(self, max_chunk_size: int = 1000, min_chunk_size: int = 100, chunk_size: int = None):
         """
         Initialize the chunker.
         
         Args:
             max_chunk_size: Maximum chunk size in characters
             min_chunk_size: Minimum chunk size in characters
+            chunk_size: Alternative name for max_chunk_size (for compatibility)
         """
-        self.max_chunk_size = max_chunk_size
+        # Support both parameter names (chunk_size and max_chunk_size) for compatibility
+        if chunk_size is not None:
+            self.max_chunk_size = chunk_size
+        else:
+            self.max_chunk_size = max_chunk_size
+            
         self.min_chunk_size = min_chunk_size
+        
+        logger.info(f"Initialized SemanticChunker with max_chunk_size={self.max_chunk_size}, min_chunk_size={self.min_chunk_size}")
     
     def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

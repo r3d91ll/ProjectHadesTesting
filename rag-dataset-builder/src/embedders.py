@@ -13,7 +13,7 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 from tqdm import tqdm
 
-from .builder import BaseEmbedder
+from src.builder import BaseEmbedder
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.embedders")

@@ -42,7 +42,7 @@ pathrag/
    Make sure Arize Phoenix is running as configured in your Docker Compose setup:
 
    ```bash
-   curl http://localhost:8080/health
+   curl http://localhost:8084/health
    ```
 
 ## Usage
@@ -88,7 +88,7 @@ The implementation automatically sends telemetry data to Arize Phoenix, includin
 - Path retrieval statistics
 - Evaluation metrics (when using the `--evaluate` flag)
 
-You can access the Arize Phoenix UI at http://localhost:8080 to:
+You can access the Arize Phoenix UI at http://localhost:8084 to:
 
 1. View trace data for all PathRAG queries
 2. Analyze performance metrics like latency and token usage

@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from tqdm import tqdm
 
-from .builder import BaseOutputFormatter
+from src.builder import BaseOutputFormatter
 
 # Configure logging
 logger = logging.getLogger("rag_dataset_builder.formatters")
@@ -188,6 +188,44 @@ class PathRAGFormatter(BaseFormatter):
         
         except Exception as e:
             logger.error(f"Error formatting output: {e}")
+            
+    def finalize(self) -> None:
+        """Finalize the PathRAG output and save final state."""
+        try:
+            # Save the final knowledge graph state
+            self._save_graph()
+            
+            # Generate summary statistics
+            num_nodes = self.knowledge_graph.number_of_nodes()
+            num_edges = self.knowledge_graph.number_of_edges()
+            node_types = {}
+            for _, data in self.knowledge_graph.nodes(data=True):
+                node_type = data.get('type', 'unknown')
+                node_types[node_type] = node_types.get(node_type, 0) + 1
+                
+            # Log summary
+            logger.info(f"Finalized PathRAG output with {num_nodes} nodes and {num_edges} edges")
+            for node_type, count in node_types.items():
+                logger.info(f"  - {node_type}: {count} nodes")
+                
+            # Create a summary file
+            summary = {
+                'total_nodes': num_nodes,
+                'total_edges': num_edges,
+                'node_types': node_types,
+                'timestamp': self._get_timestamp()
+            }
+            
+            summary_path = os.path.join(self.output_dir, "summary.json")
+            self.save_json(summary, summary_path)
+            
+        except Exception as e:
+            logger.error(f"Error finalizing PathRAG output: {e}")
+            
+    def _get_timestamp(self):
+        """Get current timestamp in ISO format."""
+        from datetime import datetime
+        return datetime.now().isoformat()
     
     def _save_graph(self) -> None:
         """Save the knowledge graph to disk."""

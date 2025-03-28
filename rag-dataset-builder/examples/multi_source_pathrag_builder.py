@@ -177,6 +177,9 @@ class MultiSourcePathRAGBuilder:
                 endpoint=endpoint
             )
             
+            # Set environment variable for Phoenix collector endpoint (for LangChain compatibility)
+            os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_url
+            
             # Get a tracer for our application
             self.tracer = trace.get_tracer(__name__)
             logger.info(f"Phoenix OpenTelemetry tracer initialized for project: {project_name}")
@@ -702,10 +705,10 @@ def ensure_phoenix_running():
     """Ensure Phoenix server is running for telemetry tracking."""
     import socket
     try:
-        # Check if Phoenix is already running on port 8080
+        # Check if Phoenix is already running on port 8084
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(('localhost', 8080)) == 0:
-                logger.info("Phoenix server already running on port 8080")
+            if s.connect_ex(('localhost', 8084)) == 0:
+                logger.info("Phoenix server already running on port 8084")
                 return True
         
         # Try to start Phoenix server
@@ -716,8 +719,8 @@ def ensure_phoenix_running():
             def start_phoenix_server():
                 try:
                     # Use our RTX A6000 GPUs for Phoenix visualization
-                    logger.info("Starting Phoenix server on port 8080")
-                    px.launch_app(port=8080)
+                    logger.info("Starting Phoenix server on port 8084")
+                    px.launch_app(port=8084)
                 except Exception as e:
                     logger.warning(f"Could not start Phoenix server: {e}")
             
@@ -794,7 +797,7 @@ def main():
         ensure_telemetry_flush()
         
         logger.info("PathRAG dataset built successfully!")
-        logger.info(f"To view the Phoenix dashboard: http://localhost:8080")
+        logger.info(f"To view the Phoenix dashboard: http://localhost:8084")
         
         # Allow time for telemetry to be completely flushed
         time.sleep(2)

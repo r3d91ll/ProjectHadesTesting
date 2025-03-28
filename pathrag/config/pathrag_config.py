@@ -17,8 +17,8 @@ OPENAI_API_MODEL = os.getenv('OPENAI_API_MODEL', 'gpt-4o')
 OPENAI_API_MAX_TOKENS = int(os.getenv('OPENAI_API_MAX_TOKENS', '8192'))
 
 # Arize Phoenix settings
-PHOENIX_HOST = os.getenv('PHOENIX_HOST', 'arize-phoenix')
-PHOENIX_PORT = int(os.getenv('PHOENIX_PORT', '8080'))
+PHOENIX_HOST = os.getenv('PHOENIX_HOST', 'localhost')
+PHOENIX_PORT = int(os.getenv('PHOENIX_PORT', '8084'))
 
 # Document storage settings
 DOCUMENT_STORE_TYPE = os.getenv('DOCUMENT_STORE_TYPE', 'chroma')

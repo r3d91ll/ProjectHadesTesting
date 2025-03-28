@@ -38,7 +38,7 @@ class ArizePhoenixTracker(BasePerformanceTracker):
         enabled: bool = True,
         project_name: str = "rag-dataset-builder",
         auto_init: bool = True,
-        server_port: int = 8080,
+        server_port: int = 8084,
         log_file: Optional[str] = None
     ):
         """

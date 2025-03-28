@@ -116,6 +116,9 @@ pathrag/logs/**/*
 !pathrag/logs/
 !pathrag/logs/.gitkeep
 
+# NLTK data
+nltk_data/*
+
 # Arize Phoenix files
 phoenix_client.log
 *.trace.json
@@ -123,3 +126,4 @@ arize_phoenix_data/
 
 # GPU monitoring files
 *.prom
+source_documents/papers/*

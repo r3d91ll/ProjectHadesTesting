@@ -67,7 +67,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "format": "hertz",
       "gauge": {
         "maxValue": 100,
@@ -148,7 +148,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "format": "hertz",
       "gauge": {
         "maxValue": 100,
@@ -225,7 +225,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "fill": 0,
       "fillGradient": 0,
       "gridPos": {
@@ -317,7 +317,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "fill": 0,
       "fillGradient": 0,
       "gridPos": {
@@ -412,7 +412,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "format": "celsius",
       "gauge": {
         "maxValue": 90,
@@ -493,7 +493,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "format": "watt",
       "gauge": {
         "maxValue": 2400,
@@ -570,7 +570,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -661,7 +661,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "fill": 0,
       "fillGradient": 0,
       "gridPos": {
@@ -756,7 +756,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "description": "",
       "format": "percent",
       "gauge": {
@@ -838,7 +838,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "description": "",
       "format": "percent",
       "gauge": {
@@ -916,7 +916,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": {"type":"prometheus","uid":"prometheus"},
       "fill": 0,
       "fillGradient": 0,
       "gridPos": {
@@ -1015,7 +1015,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "${DS_PROMETHEUS}",
+        "datasource": {"type":"prometheus","uid":"prometheus"},
         "definition": "label_values(dcgm_dec_utilization{job=\"gpu-metrics\"}, instance)",
         "hide": 0,
         "includeAll": false,

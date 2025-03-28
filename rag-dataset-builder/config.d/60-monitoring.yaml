@@ -7,7 +7,7 @@ monitoring:
     type: "arize_phoenix"
     enabled: true
     project_name: "rag-dataset-builder"
-    server_port: 8080
+    server_port: 8084
     log_file: "${directories.logs}/phoenix.log"
     save_traces: true
     monitoring_interval: 10  # seconds

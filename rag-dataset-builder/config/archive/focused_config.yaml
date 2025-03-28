@@ -50,7 +50,7 @@ processing:
 performance_tracking:
   enabled: true
   project_name: "multi_source_pathrag"
-  phoenix_url: "http://localhost:8080"
+  phoenix_url: "http://localhost:8084"
   debug: true
   
 output:

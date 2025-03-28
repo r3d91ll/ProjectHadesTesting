@@ -46,7 +46,7 @@ class PathRAGDBArizeAdapter:
         """
         self.config = config
         self.phoenix_host = config.get("phoenix_host", "localhost")
-        self.phoenix_port = config.get("phoenix_port", 8080)
+        self.phoenix_port = config.get("phoenix_port", 8084)
         self.phoenix_url = f"http://{self.phoenix_host}:{self.phoenix_port}"
         self.track_performance = config.get("track_performance", True)
         

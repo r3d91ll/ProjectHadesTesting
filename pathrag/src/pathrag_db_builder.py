@@ -107,7 +107,7 @@ class PathRAGDatabaseBuilder:
             try:
                 self.arize_adapter = PathRAGDBArizeAdapter({
                     "phoenix_host": os.environ.get("PHOENIX_HOST", "localhost"),
-                    "phoenix_port": int(os.environ.get("PHOENIX_PORT", "8080")),
+                    "phoenix_port": int(os.environ.get("PHOENIX_PORT", "8084")),
                     "track_performance": True
                 })
                 logger.info("Connected to Arize Phoenix for performance tracking")

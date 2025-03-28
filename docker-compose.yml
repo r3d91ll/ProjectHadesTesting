@@ -65,7 +65,7 @@ services:
       # Monitoring configuration
       - ENABLE_METRICS=true
       - METRICS_PORT=9000
-      - ARIZE_PHOENIX_URL=http://arize-phoenix:8080
+      - ARIZE_PHOENIX_URL=http://arize-phoenix:8084
     networks:
       - hades-network
       - hades-monitoring

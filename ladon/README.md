@@ -54,7 +54,7 @@ chmod +x monitoring.sh
 
 - **Grafana**: http://localhost:3000 (admin/admin_password)
 - **Prometheus**: http://localhost:9090
-- **Arize Phoenix**: http://localhost:8080
+- **Arize Phoenix**: http://localhost:8084
 
 ## Integration with ProjectHadesTesting
 

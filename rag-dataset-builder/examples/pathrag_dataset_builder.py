@@ -72,6 +72,8 @@ def setup_phoenix():
             project_name="pathrag-dataset-builder",
             endpoint="http://0.0.0.0:8084/v1/traces"
         )
+        # Set environment variable for Phoenix collector endpoint
+        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://0.0.0.0:8084"
         
         # Get a tracer for our application
         tracer = trace.get_tracer("pathrag.dataset_builder")

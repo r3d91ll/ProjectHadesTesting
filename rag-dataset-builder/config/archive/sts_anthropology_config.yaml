@@ -81,7 +81,7 @@ output:
 performance_tracking:
   enabled: true
   project_name: "rag_dataset_builder"
-  phoenix_url: "http://localhost:8080"
+  phoenix_url: "http://localhost:8084"
   batch_size: 100
   track_document_processing: true
   track_chunking: true
