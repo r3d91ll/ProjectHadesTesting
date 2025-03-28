@@ -1,0 +1,62 @@
+# Storage Backend Configurations for RAG Dataset Builder
+# This file configures various storage backends for different retrieval systems
+
+storage:
+  # NetworkX graph database configuration
+  networkx:
+    type: "networkx"
+    graph_type: "directed"  # directed or undirected
+    save_format: ["pickle", "json", "graphml"]
+    save_frequency: 50  # save after processing this many documents
+    compression: true
+    backup_enabled: true
+    
+  # Neo4j graph database configuration
+  neo4j:
+    type: "neo4j"
+    uri: "${NEO4J_URI}"
+    username: "${NEO4J_USERNAME}"
+    password: "${NEO4J_PASSWORD}"
+    database: "rag"
+    batch_size: 1000
+    timeout: 60  # seconds
+    indices:
+      - "CREATE INDEX node_type_idx IF NOT EXISTS FOR (n:Node) ON (n.type)"
+      - "CREATE INDEX relationship_type_idx IF NOT EXISTS FOR ()-[r]-() ON (r.type)"
+    constraints:
+      - "CREATE CONSTRAINT unique_node_id IF NOT EXISTS FOR (n:Node) REQUIRE n.id IS UNIQUE"
+    
+  # FAISS vector database configuration
+  faiss:
+    type: "faiss"
+    index_type: "IndexFlatIP"  # options: IndexFlatIP, IndexFlatL2, IndexHNSWFlat
+    nprobe: 10
+    dimensions: 1536  # Must match the embedding model's dimensions
+    metric: "inner_product"  # options: inner_product, l2
+    save_frequency: 50  # save after processing this many documents
+    
+  # Chroma vector database configuration
+  chroma:
+    type: "chroma"
+    persistent_directory: "./data/chroma"
+    collection_name: "rag_dataset"
+    embedding_function: "openai"  # references the embedder configuration
+    distance_function: "cosine"  # options: cosine, l2, ip
+    
+  # PGVector (PostgreSQL with pgvector) configuration
+  pgvector:
+    type: "pgvector"
+    connection_string: "${PGVECTOR_CONNECTION_STRING}"
+    table_name: "embeddings"
+    index_type: "ivfflat"  # options: ivfflat, hnsw
+    dimensions: 1536  # Must match the embedding model's dimensions
+    batch_size: 1000
+    
+  # SQLite configuration (simple local storage)
+  sqlite:
+    type: "sqlite"
+    database_path: "./data/rag.db"
+    create_indices: true
+    cache_size: 2000
+    journal_mode: "WAL"
+    synchronous: "NORMAL"

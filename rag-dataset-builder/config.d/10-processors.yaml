@@ -1,0 +1,71 @@
+# Document Processor Configurations for RAG Dataset Builder
+# This file configures various document processors for different file types
+
+processors:
+  # PDF document processor configuration
+  pdf:
+    type: "pdf"
+    extract_metadata: true
+    track_license: true
+    extract_images: false
+    ocr_enabled: false
+    ocr_language: "eng"
+    layout_analysis: true
+    min_text_quality: 0.7
+    max_pages: 500
+    timeout: 300  # seconds
+    
+  # Text document processor configuration
+  text:
+    type: "text"
+    extract_metadata: true
+    track_license: true
+    encoding: "utf-8"
+    strip_html: true
+    normalize_whitespace: true
+    
+  # Academic paper processor configuration
+  academic:
+    type: "academic"
+    extract_metadata: true
+    track_license: true
+    extract_citations: true
+    extract_references: true
+    extract_abstract: true
+    extract_sections: true
+    extract_figures: false
+    citation_style: "apa"
+    
+  # Code document processor configuration
+  code:
+    type: "code"
+    extract_metadata: true
+    track_license: true
+    extract_comments: true
+    extract_docstrings: true
+    supported_languages:
+      - "python"
+      - "javascript"
+      - "java"
+      - "cpp"
+      - "go"
+      - "rust"
+    ignore_patterns:
+      - "node_modules"
+      - ".git"
+      - "__pycache__"
+      - "*.pyc"
+      - "*.class"
+      
+  # HTML document processor configuration
+  html:
+    type: "html"
+    extract_metadata: true
+    track_license: true
+    extract_title: true
+    extract_headings: true
+    remove_navigation: true
+    remove_advertisements: true
+    extract_main_content: true
+    extract_links: true
+    extract_images: false

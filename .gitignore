@@ -45,9 +45,14 @@ Thumbs.db
 # Database files
 *.db
 *.sqlite3
+*.pickle
+*.json
+!requirements.json
 
 # Log files
 *.log
+logs/*
+!logs/.gitkeep
 
 # Temporary files
 temp/
@@ -58,15 +63,59 @@ tmp/
 *.index
 *.faiss
 *.model
+*.pt
+*.onnx
+*.arrow
+*.parquet
 
 # Environment configuration
 .env
 .env.*
+!env.template
 
-# Experiment results that shouldn't be committed
-data/results/*
-!data/results/.gitkeep
+# RAG-Dataset-Builder specific
+# Keep config.d directory structure but ignore archived configs
+rag-dataset-builder/config/archive/
 
-# Downloaded datasets
-data/datasets/*
-!data/datasets/.gitkeep
+# Ignore generated data directories but keep structure
+rag-dataset-builder/data/*
+!rag-dataset-builder/data/.gitkeep
+rag-dataset-builder/data/input/*
+!rag-dataset-builder/data/input/.gitkeep
+rag-dataset-builder/data/output/*
+!rag-dataset-builder/data/output/.gitkeep
+rag-dataset-builder/data/chunks/*
+!rag-dataset-builder/data/chunks/.gitkeep
+rag-dataset-builder/data/embeddings/*
+!rag-dataset-builder/data/embeddings/.gitkeep
+rag-dataset-builder/.cache/
+
+# PathRAG specific - ignore everything except .gitkeep files
+# Ignore all of pathrag/data/ and subdirectories
+pathrag/data/**/*
+!pathrag/data/
+!pathrag/data/.gitkeep
+!pathrag/data/chroma_db/
+!pathrag/data/chroma_db/.gitkeep
+!pathrag/data/datasets/
+!pathrag/data/datasets/.gitkeep
+!pathrag/data/document_store/
+!pathrag/data/document_store/.gitkeep
+!pathrag/data/minimal_pathrag/
+!pathrag/data/minimal_pathrag/.gitkeep
+
+# Ignore database and logs
+pathrag/database/**/*
+!pathrag/database/
+!pathrag/database/.gitkeep
+pathrag/logs/**/*
+!pathrag/logs/
+!pathrag/logs/.gitkeep
+
+# Arize Phoenix files
+phoenix_client.log
+*.trace.json
+arize_phoenix_data/
+
+# GPU monitoring files
+*.prom

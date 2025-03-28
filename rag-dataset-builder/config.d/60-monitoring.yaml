@@ -1,0 +1,75 @@
+# Monitoring Configurations for RAG Dataset Builder
+# This file configures various monitoring solutions for tracking performance
+
+monitoring:
+  # Arize Phoenix configuration for ML observability
+  arize_phoenix:
+    type: "arize_phoenix"
+    enabled: true
+    project_name: "rag-dataset-builder"
+    server_port: 8080
+    log_file: "${directories.logs}/phoenix.log"
+    save_traces: true
+    monitoring_interval: 10  # seconds
+    track_system_resources: true
+    track_embedding_metrics: true
+    track_llm_metrics: false  # Enabled only when using LLMs
+    ui_enabled: true
+    
+    # Additional telemetry data to collect
+    telemetry:
+      document_processing: true
+      chunking: true
+      embedding_generation: true
+      query_response: true
+      path_retrieval: true  # For PathRAG
+      vector_retrieval: true  # For VectorRAG
+      evaluation_metrics: true
+      latency_breakdown: true
+      token_usage: true
+  
+  # Prometheus monitoring configuration
+  prometheus:
+    type: "prometheus"
+    enabled: true
+    port: 9090
+    metrics_path: "/metrics"
+    metrics_prefix: "rag_dataset_builder"
+    scrape_interval: 15  # seconds
+    
+    # GPU monitoring settings for NVIDIA GPUs
+    gpu_monitoring:
+      enabled: true
+      nvidia_smi_path: "/usr/bin/nvidia-smi"
+      metrics:
+        - "utilization.gpu"
+        - "utilization.memory"
+        - "memory.total"
+        - "memory.used"
+        - "memory.free"
+        - "temperature.gpu"
+        - "power.draw"
+        - "clocks.current.sm"
+        - "clocks.current.memory"
+      device_ids: [0, 1]  # Monitor both NVIDIA RTX A6000 GPUs
+      
+    # Textfile collector settings
+    textfile_collector:
+      enabled: true
+      output_dir: "/var/lib/node_exporter/textfile_collector"
+      update_interval: 30  # seconds
+    
+    # Alerting configuration
+    alerting:
+      rules_file: "./config/prometheus/rules.yml"
+      check_interval: 30  # seconds
+  
+  # MLflow tracking configuration
+  mlflow:
+    type: "mlflow"
+    enabled: false
+    tracking_uri: "http://localhost:5000"
+    experiment_name: "rag-dataset-builder"
+    log_artifacts: true
+    log_parameters: true
+    log_metrics: true

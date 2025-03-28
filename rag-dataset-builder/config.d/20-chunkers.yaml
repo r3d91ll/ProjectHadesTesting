@@ -1,0 +1,64 @@
+# Text Chunker Configurations for RAG Dataset Builder
+# This file configures various text chunking strategies
+
+chunkers:
+  # Sliding window chunking configuration
+  sliding_window:
+    type: "sliding_window"
+    chunk_size: 512
+    chunk_overlap: 128
+    min_chunk_size: 100
+    preserve_paragraph_boundaries: true
+    include_metadata: true
+    metadata_fields:
+      - "source"
+      - "document_id"
+      - "section"
+      - "license"
+  
+  # Semantic chunking configuration
+  semantic:
+    type: "semantic"
+    model: "sentence-transformers/all-mpnet-base-v2"
+    similarity_threshold: 0.75
+    max_chunk_size: 1024
+    min_chunk_size: 100
+    include_metadata: true
+    cache_embeddings: true
+    
+  # Fixed-size chunking configuration
+  fixed_size:
+    type: "fixed_size"
+    chunk_size: 512
+    preserve_sentence_boundaries: true
+    include_metadata: true
+    
+  # Recursive character-level chunking
+  recursive:
+    type: "recursive"
+    separators:
+      - "\n\n"  # First try to split by paragraphs
+      - "\n"     # Then by new lines
+      - ". "     # Then by sentences
+      - ", "     # Then by clauses
+      - " "      # Finally by words
+    max_chunk_size: 512
+    min_chunk_size: 100
+    include_metadata: true
+    
+  # Section-based chunking (e.g., for academic papers)
+  section:
+    type: "section"
+    section_markers:
+      - "Introduction"
+      - "Background"
+      - "Related Work"
+      - "Methodology"
+      - "Results"
+      - "Discussion"
+      - "Conclusion"
+      - "References"
+    include_section_in_chunk: true
+    max_section_size: 1024
+    split_large_sections: true
+    include_metadata: true

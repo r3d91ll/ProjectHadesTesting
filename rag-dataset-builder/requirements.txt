@@ -1,0 +1,21 @@
+# Core dependencies
+numpy>=1.21.0
+networkx>=2.7.0
+PyYAML>=6.0
+tqdm>=4.62.0
+nltk>=3.6.0
+sentence-transformers>=2.2.0
+torch>=1.10.0
+requests>=2.26.0
+beautifulsoup4>=4.10.0
+arxiv>=1.4.2
+
+# Optional dependencies
+PyPDF2>=2.0.0  # For PDF processing when pdftotext is not available
+openai>=1.0.0  # For OpenAI embeddings
+faiss-cpu>=1.7.0  # For vector search (use faiss-gpu for GPU acceleration)
+chromadb>=0.3.0  # For Chroma vector database
+datasets>=2.0.0  # For Hugging Face dataset integration
+
+# For Arize Phoenix integration (optional)
+arize-phoenix>=1.0.0

@@ -1,0 +1,79 @@
+# PathRAG Example Configuration
+# This is an example configuration specifically for PathRAG implementation
+# Copy this to your config.d/ directory with a prefix like "90-pathrag.yaml" to override defaults
+
+# Main PathRAG configuration
+pathrag:
+  # Storage settings
+  storage:
+    backend: "networkx"  # Other options: "neo4j" if configured
+    save_raw_text: true
+    save_raw_embeddings: true
+    graph_type: "directed"
+    
+  # Embedding settings
+  embedding:
+    model: "openai"  # Must match a configured embedder
+    cache_embeddings: true
+    similarity_threshold: 0.75
+    
+  # Path retrieval settings
+  retrieval:
+    max_paths: 5
+    max_path_length: 3
+    path_ranking_method: "combined"  # Options: combined, similarity, centrality
+    include_nodes_per_path: 3
+    
+  # Graph structure settings
+  graph:
+    include_category_nodes: true
+    include_document_nodes: true
+    include_chunk_nodes: true
+    include_entity_nodes: true
+    relationship_types:
+      - "contains"     # Document -> Chunk
+      - "next"         # Chunk -> Chunk (sequential)
+      - "similar_to"   # Chunk -> Chunk (semantic similarity)
+      - "references"   # Chunk -> Entity
+      - "belongs_to"   # Document -> Category
+      
+  # Knowledge extraction settings
+  knowledge:
+    extract_entities: true
+    entities_per_chunk: 5
+    entity_types:
+      - "person"
+      - "organization"
+      - "location"
+      - "concept"
+      - "date"
+      - "numeric"
+    extract_relationships: true
+    
+  # Integration with Arize Phoenix
+  monitoring:
+    enabled: true
+    tracker: "arize_phoenix"  # Must match a configured tracker
+    track_paths: true
+    track_embedding_metrics: true
+    track_graph_metrics: true
+
+# Example domain-specific configuration for academic papers
+# This extends the PathRAG configuration for academic knowledge domains
+domain_config:
+  - name: "academic_papers"
+    search_terms:
+      - "retrieval augmented generation"
+      - "knowledge graphs"
+      - "graph neural networks"
+    
+    processors:
+      pdf:
+        extract_citations: true
+        extract_references: true
+        extract_sections: true
+    
+    custom_relationship_types:
+      - "cites"         # Paper -> Paper
+      - "written_by"    # Paper -> Author
+      - "published_in"  # Paper -> Journal/Conference

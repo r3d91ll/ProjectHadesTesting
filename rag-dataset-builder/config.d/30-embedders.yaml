@@ -1,0 +1,66 @@
+# Embedder Configurations for RAG Dataset Builder
+# This file configures various embedding models and services
+
+embedders:
+  # OpenAI embeddings configuration
+  openai:
+    type: "openai"
+    model: "text-embedding-3-small"
+    dimensions: 1536
+    batch_size: 50
+    cache_embeddings: true
+    api_key: "${OPENAI_API_KEY}"  # Loaded from environment variable
+    timeout: 60  # seconds
+    retry_attempts: 3
+    
+  # Sentence Transformers configuration
+  sentence_transformers:
+    type: "sentence_transformers"
+    model: "all-mpnet-base-v2"
+    dimensions: 768
+    batch_size: 32
+    cache_embeddings: true
+    device: "cuda"  # 'cuda' or 'cpu'
+    normalize_embeddings: true
+    
+  # Hugging Face Transformers configuration
+  huggingface:
+    type: "huggingface"
+    model: "intfloat/e5-small-v2"
+    dimensions: 384
+    batch_size: 32
+    cache_embeddings: true
+    device: "cuda"  # 'cuda' or 'cpu'
+    use_fp16: true
+    use_auth_token: "${HF_API_KEY}"  # Loaded from environment variable, optional
+    
+  # BGE embeddings configuration
+  bge:
+    type: "bge"
+    model: "BAAI/bge-large-en-v1.5"
+    dimensions: 1024
+    batch_size: 32
+    cache_embeddings: true
+    device: "cuda"  # 'cuda' or 'cpu'
+    use_fp16: true
+    
+  # BERT embeddings configuration
+  bert:
+    type: "bert"
+    model: "bert-base-uncased"
+    dimensions: 768
+    batch_size: 32
+    cache_embeddings: true
+    device: "cuda"  # 'cuda' or 'cpu'
+    pooling_strategy: "mean"  # 'mean', 'cls', 'max'
+    
+  # Custom embedding service (RESTful API) configuration
+  custom_api:
+    type: "api"
+    url: "http://localhost:8000/embeddings"
+    dimensions: 1024
+    batch_size: 50
+    cache_embeddings: true
+    headers:
+      authorization: "Bearer ${CUSTOM_API_KEY}"
+    timeout: 60  # seconds

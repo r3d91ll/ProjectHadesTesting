@@ -1,0 +1,89 @@
+# Retrieval System Configurations for RAG Dataset Builder
+# This file configures various retrieval system implementations
+
+retrieval_systems:
+  # PathRAG configuration
+  pathrag:
+    type: "pathrag"
+    storage_backend: "networkx"  # Which storage backend to use
+    embedder: "openai"  # Which embedder to use
+    chunker: "sliding_window"  # Which chunker to use
+    processor: "pdf"  # Default processor for documents
+    
+    # Path generation and retrieval settings
+    path_retrieval:
+      max_paths: 5
+      max_path_length: 3
+      similarity_threshold: 0.7
+      consider_bidirectional: true
+      path_ranking: "combined"  # Options: combined, similarity, relevance, centrality
+      include_reasoning: true
+    
+    # Data organization settings
+    organization:
+      entity_extraction: true
+      relationship_inference: true
+      auto_categorization: true
+      hierarchical_structure: true
+    
+    # Output settings
+    output:
+      include_raw_text: true
+      include_embeddings: true
+      include_metadata: true
+      graph_visualization: true
+      save_formats: ["json", "graphml"]
+  
+  # VectorRAG configuration
+  vectorrag:
+    type: "vectorrag"
+    storage_backend: "faiss"  # Which storage backend to use
+    embedder: "sentence_transformers"  # Which embedder to use
+    chunker: "semantic"  # Which chunker to use
+    processor: "pdf"  # Default processor for documents
+    
+    # Vector retrieval settings
+    vector_retrieval:
+      top_k: 10
+      similarity_threshold: 0.7
+      reranking_enabled: true
+      reranking_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+      hybrid_search: false
+    
+    # Output settings
+    output:
+      include_raw_text: true
+      include_embeddings: true
+      include_metadata: true
+      save_formats: ["json", "csv"]
+  
+  # GraphRAG configuration
+  graphrag:
+    type: "graphrag"
+    storage_backend: "neo4j"  # Which storage backend to use
+    embedder: "openai"  # Which embedder to use
+    chunker: "sliding_window"  # Which chunker to use
+    processor: "pdf"  # Default processor for documents
+    
+    # Entity and relation extraction
+    extraction:
+      entity_model: "spacy"
+      entity_types: ["PERSON", "ORG", "GPE", "LOC", "PRODUCT", "EVENT"]
+      relation_model: "stanford-openie"
+      confidence_threshold: 0.5
+      
+    # Graph retrieval settings
+    graph_retrieval:
+      max_hops: 2
+      top_k_entities: 10
+      include_relationships: true
+      query_expansion: true
+      entity_ranking: "pagerank"
+    
+    # Output settings
+    output:
+      include_raw_text: true
+      include_embeddings: true
+      include_metadata: true
+      graph_visualization: true
+      save_formats: ["json", "cypher"]
