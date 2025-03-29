@@ -109,22 +109,22 @@ collection:
         - "abstract"
         - "author"
     
-    # semantic_scholar:
-    #   enabled: true
-    #   api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
-    #   rate_limit:
-    #     requests_per_minute: 100
-    #     max_retries: 3
-    #     backoff_factor: 2.0
+    semantic_scholar:
+      enabled: false
+      api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
+      rate_limit:
+        requests_per_minute: 60
+        max_retries: 3
+        backoff_factor: 2.0
     
-    # pubmed:
-    #   enabled: true
-    #   api_key: "${PUBMED_API_KEY}"
-    #   email: "${PUBMED_EMAIL}"
+    pubmed:
+      enabled: false
+      api_key: "${PUBMED_API_KEY}"
+      email: "${PUBMED_EMAIL}"
     
-    # socarxiv:
-    #   enabled: true
-    #   osf_token: "${OSF_TOKEN}"
+    socarxiv:
+      enabled: true
+      osf_token: "${OSF_TOKEN}"
       
     # JSTOR configuration template (commented out)
     # jstor:
@@ -164,7 +164,7 @@ collection:
   # You can enable/disable specific domains as needed
   domains:
     anthropology_of_value:
-      enabled: false
+      enabled: true
       search_terms:
         - "anthropology of value"
         - "value systems anthropology"
@@ -178,7 +178,7 @@ collection:
         - "symbolic value anthropology"
     
     science_technology_studies:
-      enabled: false
+      enabled: true
       search_terms:
         - "science and technology studies"
         - "actor network theory"
@@ -192,7 +192,7 @@ collection:
         - "science policy"
     
     interdisciplinary:
-      enabled: false
+      enabled: true
       search_terms:
         - "value in technological systems"
         - "ethics in technology anthropology"
@@ -204,7 +204,7 @@ collection:
         - "value-sensitive design"
     
     ai_ethics:
-      enabled: false
+      enabled: true
       search_terms:
         - "ai ethics"
         - "algorithmic fairness"
@@ -279,7 +279,7 @@ collection:
 # Processing configuration
 processing:
   batch_size: 5  # Number of documents to process in each batch
-  download_threshold: 100  # Number of documents to download before processing begins
+  download_threshold: 10  # Number of documents to download before processing begins
   num_workers: 2  # Number of parallel workers (matching your 2 GPUs)
   max_ram_usage_gb: 16  # Maximum RAM to use during processing
   incremental: true  # Process documents incrementally vs. all at once

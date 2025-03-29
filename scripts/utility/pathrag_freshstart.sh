@@ -12,7 +12,6 @@ PATHRAG_DIRS=(
   "pathrag/data/datasets"
   "pathrag/data/document_store"
   "pathrag/data/minimal_pathrag"
-  "pathrag/database"
   "pathrag/logs"
 )
 
@@ -25,15 +24,43 @@ RAG_DIRS=(
   "rag-dataset-builder/data/registry"
   "rag-dataset-builder/logs"
   "rag-dataset-builder/.cache"
-  "rag_databases/current"
 )
 
+# Source documents directories
+SOURCE_DIRS=(
+  "source_documents/academic_papers"
+  "source_documents/papers"
+)
+
+# Database directories
+DB_DIRS=(
+  "rag_databases/pathrag/chunks"
+  "rag_databases/pathrag/embeddings"
+  "rag_databases/pathrag/graph"
+  "rag_databases/pathrag/metadata"
+)
+
+# Clean existing data but preserve structure
+echo "Cleaning existing data..."
+
+# Clean source documents
+find source_documents/academic_papers -type f -name "*.pdf" -delete
+find source_documents/papers -type f -name "*.pdf" -delete
+
+# Clean database directories
+rm -rf rag_databases/pathrag/chunks/*
+rm -rf rag_databases/pathrag/embeddings/*
+rm -rf rag_databases/pathrag/graph/*
+rm -rf rag_databases/pathrag/metadata/*
+
 # Create all directories and add .gitkeep files
-for dir in "${PATHRAG_DIRS[@]}" "${RAG_DIRS[@]}"; do
+for dir in "${PATHRAG_DIRS[@]}" "${RAG_DIRS[@]}" "${SOURCE_DIRS[@]}" "${DB_DIRS[@]}"; do
   mkdir -p "$dir"
   touch "$dir/.gitkeep"
   echo "Created $dir/.gitkeep"
 done
+
+echo "Cleanup complete. Directory structure preserved with empty directories."
 
 # Clean up large data files (safely)
 echo "Removing large data files..."

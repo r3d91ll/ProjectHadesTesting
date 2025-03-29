@@ -26,6 +26,13 @@ scrape_configs:
       
   # GPU Metrics are collected via node-exporter textfile collector
   
+  # Direct GPU metrics exporter
+  - job_name: 'gpu-metrics'
+    static_configs:
+      - targets: ['192.168.1.202:9400']
+        labels:
+          instance: 'gpu-exporter'
+  
   # Add targets for PathRAG and GraphRAG containers
   - job_name: 'hades-containers'
     static_configs:
