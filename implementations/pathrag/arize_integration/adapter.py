@@ -13,6 +13,7 @@ import uuid
 import json
 import logging
 import yaml
+import requests
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
@@ -45,13 +46,24 @@ class PathRAGArizeAdapter:
         else:
             self.config_file = config
             self.config = self._load_config(config)
-            
+        
+        # LLM provider settings
+        self.llm_provider = self.config.get("llm_provider", "ollama")
         self.model_name = self.config.get("model_name", "unknown-model")
+        
+        # Ollama settings
+        self.ollama_host = self.config.get("ollama_host", "localhost")
+        self.ollama_port = self.config.get("ollama_port", 11434)
+        self.ollama_model = self.config.get("ollama_model", "llama3")
+        self.ollama_url = f"http://{self.ollama_host}:{self.ollama_port}"
+        
+        # Performance tracking
         self.track_performance = self.config.get("track_performance", True)
         
         # Phoenix configuration
         self.phoenix_host = self.config.get("phoenix_host", "localhost")
         self.phoenix_port = self.config.get("phoenix_port", 8084)
+        self.project_name = self.config.get("project_name", "pathrag-inference")
         
         # Set up OpenTelemetry for Phoenix (if tracking is enabled)
         self.phoenix_available = False
@@ -92,6 +104,48 @@ class PathRAGArizeAdapter:
             logger.warning(f"Failed to load config file {config_file}: {e}")
             return {}
     
+    def _generate_ollama_response(self, prompt: str) -> str:
+        """
+        Generate a response using Ollama API.
+        
+        Args:
+            prompt: The prompt to send to the Ollama API
+            
+        Returns:
+            The generated response text
+        """
+        try:
+            # Log the request
+            logger.info(f"🤖 Sending request to Ollama API using model: {self.ollama_model}")
+            
+            # Prepare the request payload
+            payload = {
+                "model": self.ollama_model,
+                "prompt": prompt,
+                "stream": False
+            }
+            
+            # Send the request to Ollama API
+            response = requests.post(
+                f"{self.ollama_url}/api/generate",
+                json=payload,
+                timeout=120  # 120 seconds timeout
+            )
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                result = response.json()
+                generated_text = result.get("response", "")
+                logger.info(f"✅ Successfully generated response from Ollama")
+                return generated_text
+            else:
+                logger.warning(f"⚠️ Ollama API returned status code: {response.status_code}")
+                logger.warning(f"⚠️ Response: {response.text}")
+                return f"Error: Failed to generate response from Ollama. Status code: {response.status_code}"
+        except Exception as e:
+            logger.error(f"❌ Error calling Ollama API: {e}")
+            return f"Error: {str(e)}"
+    
     def _setup_telemetry(self):
         """
         Set up OpenTelemetry for Phoenix.
@@ -121,8 +175,11 @@ class PathRAGArizeAdapter:
             resource = Resource.create({
                 "service.name": "pathrag",
                 "service.version": "1.0.0",
-                "model.name": self.model_name
+                "model.name": self.model_name,
+                "phoenix.project": self.project_name
             })
+            
+            logger.info(f"🔍 Using Phoenix project: {self.project_name}")
             
             # Create a tracer provider with the resource
             tracer_provider = TracerProvider(resource=resource)
@@ -172,7 +229,7 @@ class PathRAGArizeAdapter:
         Returns:
             Dictionary containing the answer, paths, and other metadata
         """
-        # This is a placeholder implementation - in a real system, this would:
+        # In a full implementation, this would:
         # 1. Retrieve relevant documents based on the query
         # 2. Construct paths through the document graph
         # 3. Generate a response using an LLM
@@ -180,25 +237,42 @@ class PathRAGArizeAdapter:
         
         start_time = time.time()
         
-        # Placeholder data - in a real implementation, this would come from actual retrieval and generation
+        # TODO: Implement actual document retrieval
+        # For now, we'll use placeholder data for paths and documents
+        # In a real implementation, this would come from a vector database
         paths = [["Document 1", "Document 2"], ["Document 3"]]
         documents = ["This is document 1 about PathRAG.", "This is document 2 about retrieval augmented generation."]
         
-        # Simulate response generation
-        response = (
-            "PathRAG is a Retrieval Augmented Generation system that uses a path-based approach "
-            "to improve retrieval relevance. It creates paths through a knowledge graph of documents "
-            "to provide more context and better responses to user queries."
-        )
+        # Generate a response using the configured LLM
+        prompt = f"""Based on the following documents, please answer the query: {query}
+
+Documents:
+{documents[0]}
+{documents[1]}
+
+Answer:"""
+        
+        # Generate response based on the LLM provider
+        if self.llm_provider == "ollama":
+            response = self._generate_ollama_response(prompt)
+        elif self.llm_provider == "openai":
+            # TODO: Implement OpenAI integration
+            logger.warning("OpenAI integration not implemented yet, using Ollama as fallback")
+            response = self._generate_ollama_response(prompt)
+        else:
+            logger.error(f"Unsupported LLM provider: {self.llm_provider}")
+            response = f"Error: Unsupported LLM provider '{self.llm_provider}'"
+        
         
         # Calculate latency
         latency_ms = (time.time() - start_time) * 1000
         
-        # Simulate token usage
+        # For now, we'll use estimated token usage
+        # In a real implementation, this would come from the LLM response
         token_usage = {
-            "prompt_tokens": 50,
-            "completion_tokens": 30,
-            "total_tokens": 80
+            "prompt_tokens": len(prompt) // 4,  # Rough estimate
+            "completion_tokens": len(response) // 4,  # Rough estimate
+            "total_tokens": (len(prompt) + len(response)) // 4  # Rough estimate
         }
         
         # Create path information for telemetry
@@ -341,7 +415,8 @@ class PathRAGArizeAdapter:
                     attributes={"timestamp": datetime.now().isoformat()}
                 )
             
-            logger.info(f"✅ Logged trace {trace_id} to Phoenix")
+            logger.info(f"✅ Logged trace {trace_id} to Phoenix project {self.project_name}")
+            logger.info(f"✅ Phoenix endpoint: http://{self.phoenix_host}:{self.phoenix_port}/v1/traces")
             return trace_id
         
         except Exception as e:

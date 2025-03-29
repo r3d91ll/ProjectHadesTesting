@@ -100,8 +100,18 @@ hades-xnx-validation/
 
 - Docker and Docker Compose
 - Git
+- Ollama (for local LLM inference)
 
-All other dependencies (Python, Neo4j, Ollama) are handled through Docker containers.
+All other dependencies (Python, Neo4j) are handled through Docker containers.
+
+### LLM Inference Options
+
+The project supports two LLM inference options:
+
+1. **OpenAI API** - For production use with high-quality responses
+2. **Ollama** - For local development and testing without API costs
+
+See [Ollama Integration Documentation](pathrag/docs/ollama_integration.md) for details on setting up local inference.
 
 ### Installation
 
