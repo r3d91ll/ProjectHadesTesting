@@ -1,0 +1,28 @@
+# PathRAG Environment Configuration
+# Copy this file to .env in the pathrag directory
+
+# OpenAI API Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_API_MODEL=gpt-4o
+OPENAI_API_MAX_TOKENS=8192
+
+# Arize Phoenix Configuration
+PHOENIX_HOST=localhost
+PHOENIX_PORT=8084
+PHOENIX_PROJECT_NAME=pathrag-inference
+
+# Document Storage Configuration
+DOCUMENT_STORE_TYPE=pathrag
+DOCUMENT_STORE_PATH=/home/todd/ML-Lab/New-HADES/rag_databases/current
+
+# Embedding Model Configuration
+EMBEDDING_MODEL=sentence_transformer
+EMBEDDING_DIMENSION=384
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FILE=/home/todd/ML-Lab/New-HADES/pathrag/logs/pathrag.log
+
+# Performance Tracking
+TRACK_PERFORMANCE=true
+PERFORMANCE_METRICS_INTERVAL=60  # seconds

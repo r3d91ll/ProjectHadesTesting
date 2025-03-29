@@ -18,6 +18,7 @@ from pathlib import Path
 
 from metrics_collector import load_metrics, get_recent_queries, get_query_details
 from graph_visualizer import build_networkx_graph, create_graph_visualization
+from phoenix_connector import check_phoenix_connection, get_phoenix_projects, get_path_metrics, PHOENIX_PROJECT
 
 # Page configuration
 st.set_page_config(
@@ -30,6 +31,22 @@ st.set_page_config(
 # Sidebar with filters
 st.sidebar.title("PathRAG Monitor")
 st.sidebar.info("Visualize and analyze graph traversal paths and metrics for PathRAG retrieval")
+
+# Phoenix connection status
+phoenix_connected = check_phoenix_connection()
+if phoenix_connected:
+    st.sidebar.success("✅ Connected to Phoenix")
+    
+    # Get Phoenix projects
+    projects = get_phoenix_projects()
+    if PHOENIX_PROJECT in projects:
+        st.sidebar.success(f"✅ PathRAG project '{PHOENIX_PROJECT}' found")
+    else:
+        st.sidebar.warning(f"⚠️ PathRAG project '{PHOENIX_PROJECT}' not found")
+        st.sidebar.info(f"Available projects: {', '.join(projects) if projects else 'None'}")
+else:
+    st.sidebar.error("❌ Not connected to Phoenix")
+    st.sidebar.info("Please ensure Phoenix is running")
 
 # Date range filter
 default_start = datetime.now() - timedelta(days=7)
@@ -49,35 +66,81 @@ tab1, tab2, tab3 = st.tabs(["Path Visualization", "Metrics Dashboard", "Query An
 with tab1:
     st.header("Path Visualization")
     
-    # Query selection
-    recent_queries = get_recent_queries(start_date, end_date)
-    selected_query_id = st.selectbox(
-        "Select Query", 
-        options=recent_queries["query_id"].tolist(),
-        format_func=lambda x: f"{recent_queries[recent_queries['query_id'] == x]['query_text'].iloc[0][:50]}... ({x})"
-    )
+    # Phoenix data source option
+    use_phoenix = st.checkbox("Use Phoenix data", value=phoenix_connected)
     
-    if selected_query_id:
-        # Load query details and paths
-        query_details = get_query_details(selected_query_id)
+    if use_phoenix and phoenix_connected:
+        # Load path metrics from Phoenix
+        st.info(f"Loading path data from Phoenix project: {PHOENIX_PROJECT}")
+        path_metrics = get_path_metrics(PHOENIX_PROJECT, start_date, end_date)
         
-        # Show query metadata
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Paths Explored", query_details["paths_explored"])
-        with col2:
-            st.metric("Max Depth", query_details["max_depth"])
-        with col3:
-            st.metric("Pruning Efficiency", f"{query_details['pruning_efficiency']:.2%}")
+        if path_metrics.empty:
+            st.warning("No path data found in Phoenix for the selected date range")
+        else:
+            st.success(f"Found {len(path_metrics)} paths in Phoenix")
+            
+            # Select a trace to visualize
+            trace_ids = path_metrics['trace_id'].unique()
+            selected_trace = st.selectbox("Select a trace to visualize", trace_ids)
+            
+            # Filter metrics for selected trace
+            trace_paths = path_metrics[path_metrics['trace_id'] == selected_trace]
+            
+            if not trace_paths.empty:
+                # Display trace info
+                st.subheader("Trace Information")
+                query = trace_paths['query'].iloc[0] if 'query' in trace_paths.columns else "Unknown query"
+                st.write(f"**Query:** {query}")
+                st.write(f"**Timestamp:** {trace_paths['timestamp'].iloc[0]}")
+                st.write(f"**Paths found:** {len(trace_paths)}")
+                
+                # Create graph visualization
+                st.subheader("Path Graph")
+                
+                # Extract path nodes from the first path
+                try:
+                    path_nodes = json.loads(trace_paths['path_nodes'].iloc[0])
+                    G = build_networkx_graph(path_nodes)
+                    fig = create_graph_visualization(G)
+                    st.plotly_chart(fig, use_container_width=True)
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    st.error("Could not parse path nodes from trace data")
+                    
+                # Display path metrics table
+                st.subheader("Path Metrics")
+                display_cols = ['path_id', 'path_length', 'path_score', 'nodes_visited', 'edges_traversed', 'latency_ms']
+                display_cols = [col for col in display_cols if col in trace_paths.columns]
+                st.dataframe(trace_paths[display_cols])
+    else:
+        # Query selection
+        recent_queries = get_recent_queries(start_date, end_date)
+        selected_query_id = st.selectbox(
+            "Select Query", 
+            options=recent_queries["query_id"].tolist(),
+            format_func=lambda x: f"{recent_queries[recent_queries['query_id'] == x]['query_text'].iloc[0][:50]}... ({x})"
+        )
         
-        # Build and display graph
-        G = build_networkx_graph(query_details["paths"])
-        fig = create_graph_visualization(G, query_details["final_path"])
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Show path details
-        with st.expander("Path Details"):
-            st.write(query_details["paths"])
+        if selected_query_id:
+            # Load query details and paths
+            query_details = get_query_details(selected_query_id)
+            
+            # Show query metadata
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Paths Explored", query_details["paths_explored"])
+            with col2:
+                st.metric("Max Depth", query_details["max_depth"])
+            with col3:
+                st.metric("Pruning Efficiency", f"{query_details['pruning_efficiency']:.2%}")
+            
+            # Build and display graph
+            G = build_networkx_graph(query_details["paths"])
+            fig = create_graph_visualization(G, query_details["final_path"])
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Show path details
+            with st.expander("Path Details"):
+                st.write(query_details["paths"])
 
 with tab2:
     st.header("Metrics Dashboard")

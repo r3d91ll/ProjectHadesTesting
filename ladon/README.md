@@ -12,6 +12,7 @@ Ladon is a comprehensive monitoring stack designed for ML experimentation and sy
 - **cAdvisor**: Container metrics
 - **Process Exporter**: Process-level metrics
 - **Arize Phoenix**: ML model monitoring and evaluation
+- **Graph Database Monitor**: Visualization and performance metrics for graph databases and RAG solutions
 
 ## Directory Structure
 
@@ -25,6 +26,11 @@ ladon/
 │   ├── prometheus.yml        # Main Prometheus config
 │   ├── process-exporter.yml  # Process exporter config
 │   └── jmx_exporter/         # JMX exporter for Neo4j monitoring
+├── graph-db-monitor/         # Graph database monitoring frontend
+│   ├── app.py                # Streamlit application
+│   ├── graph_visualizer.py   # Graph visualization components
+│   └── metrics_collector.py  # Performance metrics collection
+├── arize/                    # Arize Phoenix integration
 └── scripts/                  # Helper scripts
     ├── metrics_exporter.py   # Python metrics exporter
     ├── start_monitoring.sh   # Container startup script
@@ -55,6 +61,7 @@ chmod +x monitoring.sh
 - **Grafana**: http://localhost:3000 (admin/admin_password)
 - **Prometheus**: http://localhost:9090
 - **Arize Phoenix**: http://localhost:8084
+- **Graph Database Monitor**: Run with `cd ladon/graph-db-monitor && streamlit run app.py`
 
 ## Integration with ProjectHadesTesting
 

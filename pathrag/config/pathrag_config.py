@@ -34,8 +34,8 @@ PHOENIX_INFERENCE_PROJECT_NAME = os.getenv('PHOENIX_INFERENCE_PROJECT_NAME', 'pa
 # Document storage settings
 DOCUMENT_STORE_TYPE = os.getenv('DOCUMENT_STORE_TYPE', 'chroma')
 DOCUMENT_STORE_PATH = os.getenv('DOCUMENT_STORE_PATH', 
-                               os.path.join(os.path.dirname(os.path.dirname(__file__)), 
-                                           'data/chroma_db'))
+                               os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                           'rag_databases/pathrag'))
 
 # Embedding model settings
 EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'openai')

@@ -127,3 +127,4 @@ arize_phoenix_data/
 # GPU monitoring files
 *.prom
 source_documents/papers/*
+

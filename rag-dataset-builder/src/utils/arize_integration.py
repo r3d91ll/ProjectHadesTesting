@@ -131,7 +131,16 @@ class RAGDatasetBuilderArizeAdapter:
             with self.tracer.start_as_current_span("phoenix-integration-test") as span:
                 span.set_attribute("test", True)
                 span.set_attribute("project", self.project_name)
+                span.set_attribute("component", "rag-dataset-builder")
+                span.set_attribute("timestamp", datetime.now().isoformat())
                 span.add_event("Integration test")
+                
+                # Add a child span to ensure we have a proper trace hierarchy
+                with self.tracer.start_as_current_span("verify-phoenix-connection") as child_span:
+                    child_span.set_attribute("test", True)
+                    child_span.set_attribute("component", "connection-test")
+                    child_span.add_event("Connection verified")
+                    
                 logging.info(f"🔍 Sent test trace to Phoenix project '{self.project_name}'")
         
         # Fall back to direct client if OpenTelemetry is not available
@@ -153,8 +162,9 @@ class RAGDatasetBuilderArizeAdapter:
             return None
             
         try:
-            # Create a span for this operation
-            span = self.tracer.start_span(operation_name)
+            # Create a span for this operation - use start_as_current_span instead of start_span
+            # to properly establish the trace context
+            span = self.tracer.start_as_current_span(operation_name)
             
             # Add common attributes
             span.set_attribute("project", self.project_name)
@@ -186,14 +196,21 @@ class RAGDatasetBuilderArizeAdapter:
         try:
             # Add completion status
             span.set_attribute("success", success)
+            span.set_attribute("end_timestamp", datetime.now().isoformat())
+            
             if error:
-                span.set_attribute("error", str(error))
+                span.set_attribute("error", True)
+                span.set_attribute("error.message", str(error))
+                span.record_exception(Exception(error))
                 span.add_event("Error", {"message": str(error)})
             else:
-                span.add_event("Completed")
+                span.add_event("Completed", {"success": success})
                 
-            # End the span
-            span.end()
+            # With context manager, the span is automatically ended
+            # If not using context manager, we need to end it manually
+            if not span.__class__.__name__ == "_Span":
+                span.end()
+                
             logging.info(f"📊 Completed Phoenix trace{' with error' if error else ''}")
         except Exception as e:
             logging.error(f"❌ Failed to end trace span: {e}")

@@ -486,15 +486,18 @@ class RAGDatasetBuilder:
                 # Create a temporary config file for the AcademicCollector
                 import tempfile
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_config:
-                    # Create a simplified config with just search terms
+                    # Create a simplified config with the proper structure
                     arxiv_config = {
-                        "search_terms": {}
+                        "domains": {}
                     }
                     
-                    # Add search terms from domains
+                    # Add search terms from domains with proper structure
                     for domain_name, domain_config in domains_config.items():
                         if domain_config.get("enabled", True):
-                            arxiv_config["search_terms"][domain_name] = domain_config.get("search_terms", [])
+                            arxiv_config["domains"][domain_name] = {
+                                "enabled": True,
+                                "search_terms": domain_config.get("search_terms", [])
+                            }
                     
                     # Write config to temp file
                     yaml.dump(arxiv_config, temp_config)
@@ -504,8 +507,8 @@ class RAGDatasetBuilder:
                 academic_collector = AcademicCollector(temp_config_path, self.data_dir)
                 
                 # Run the ArXiv collection
-                max_papers = sources_config.get("arxiv", {}).get("max_papers_per_category", 10)
-                academic_collector.collect_arxiv_papers(max_papers_per_category=max_papers)
+                max_papers = collection_config.get("max_papers_per_term", 1000)
+                academic_collector.collect_arxiv_papers(papers_per_term=max_papers)
                 
                 # Clean up temp file
                 try:

@@ -2,42 +2,43 @@
 
 This directory contains one-time repair scripts, temporary utilities, and other scripts that shouldn't be confused with core operational code. These utilities help with development, testing, and maintenance but are not part of the main application flow.
 
-## Directory Structure
+## Important Note
 
-- `ollama-setup/` - Scripts for setting up and configuring Ollama for local LLM inference
-- `pathrag-monitor/` - Utilities for monitoring PathRAG performance with Arize Phoenix
-- `test_phoenix_trace.py` - Script for testing Phoenix trace logging
+The key utilities have been migrated to their proper locations within the application:
 
-## Ollama Setup Utilities
+- `ollama-setup/` → `/pathrag/utils/setup/` - Scripts for Ollama configuration
+- `pathrag-monitor/` → `/pathrag/utils/monitor/` - PathRAG monitoring utilities
+- Phoenix integration tools → `/pathrag/utils/phoenix/` - Arize Phoenix integration
 
-The `ollama-setup/` directory contains scripts for configuring Ollama as a local LLM provider:
+This directory now only contains temporary scripts and one-time utilities that aren't part of the regular workflow.
 
-- `setup_qwen_model_properly.py` - Creates a custom Qwen model with extended context length (64K)
-- `update_ollama_env.py` - Updates the PathRAG .env file to use Ollama with TinyLlama
-- `update_qwen_env.py` - Updates the PathRAG .env file to use Ollama with Qwen2.5-128k
-- `update_qwen_alt_env.py` - Updates the PathRAG .env file to use Ollama with alternative Qwen model
-- `Qwen2.5-128k-64k-ctx.modelfile` - Modelfile for Qwen with 64K context length
+## Remaining Utilities
 
-## PathRAG Monitor Utilities
+This directory still contains some useful scripts that may be needed occasionally:
 
-The `pathrag-monitor/` directory contains utilities for monitoring PathRAG performance:
-
-- `phoenix_connector.py` - Connector for retrieving trace data from Arize Phoenix
-- `requirements.txt` - Dependencies for the PathRAG monitor
+- `build_rag_dataset.py` - Script for building RAG datasets
+- `semantic_scholar_dataset_explorer.py` - Tool for exploring Semantic Scholar datasets
+- `run_dataset_builder.py` - Runner script for the dataset builder
+- `debug_processor.py` - Debugging tool for document processors
 
 ## Usage
 
 These utilities are meant to be run as needed during development and are not part of the regular application workflow. To use a utility, run it directly with Python:
 
 ```bash
-python dev-utilities/ollama-setup/setup_qwen_model_properly.py
+python dev-utilities/build_rag_dataset.py
 ```
 
 ## Adding New Utilities
 
 When creating new development utilities:
 
-1. Place them in the appropriate subdirectory or create a new one if needed
-2. Document the utility's purpose in this README
+1. **Consider placement carefully**: 
+   - For one-time scripts or temporary utilities, place them in this directory
+   - For permanent utilities that will be used regularly, place them in the appropriate application directory:
+     - PathRAG utilities → `/pathrag/utils/`
+     - Dataset builder utilities → `/rag-dataset-builder/utils/`
+
+2. Document the utility's purpose in the appropriate README
 3. Include clear documentation within the utility itself
 4. Follow the naming convention of existing utilities

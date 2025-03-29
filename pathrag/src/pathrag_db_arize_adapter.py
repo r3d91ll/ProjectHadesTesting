@@ -48,12 +48,14 @@ class PathRAGDBArizeAdapter:
         self.phoenix_host = config.get("phoenix_host", "localhost")
         self.phoenix_port = config.get("phoenix_port", 8084)
         self.phoenix_url = f"http://{self.phoenix_host}:{self.phoenix_port}"
-        self.track_performance = config.get("track_performance", True)
+        self.track_performance = config.get(\"track_performance\", True)
+        self.project_name = config.get(\"project_name\", os.environ.get(\"PHOENIX_PROJECT_NAME\", \"pathrag\"))
+        logger.info(f\"Using Phoenix project name: {self.project_name}\")
         
         # Initialize Phoenix session if tracking is enabled
         if self.track_performance:
             try:
-                self.phoenix_session = Session(url=self.phoenix_url)
+                self.phoenix_session = Session(url=self.phoenix_url, project_name=self.project_name)
                 logger.info(f"Connected to Arize Phoenix at {self.phoenix_url}")
                 
                 # Check Phoenix connection

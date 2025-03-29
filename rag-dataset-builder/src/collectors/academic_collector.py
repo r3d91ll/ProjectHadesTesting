@@ -52,11 +52,7 @@ class AcademicCollector:
         self.config = self._load_config(config_file)
         
         # Create output directory structure
-        self.papers_dir = os.path.join(output_dir, "papers")
-        os.makedirs(self.papers_dir, exist_ok=True)
-        
-        # Create output directory structure
-        self.papers_dir = os.path.join(output_dir, "papers")
+        self.papers_dir = os.path.join(output_dir, "academic_papers")
         os.makedirs(self.papers_dir, exist_ok=True)
         
         # Log discovered categories and create directories
@@ -89,10 +85,17 @@ class AcademicCollector:
                     category_dir = os.path.join(self.papers_dir, category)
                     os.makedirs(category_dir, exist_ok=True)
         
-        # Create category subdirectories
+        # Create category subdirectories with standardized naming
         for category in self.categories.keys():
-            category_dir = os.path.join(self.papers_dir, category)
+            # Convert category name to snake_case for consistency
+            standardized_category = category.lower().replace(' ', '_').replace('-', '_')
+            category_dir = os.path.join(self.papers_dir, standardized_category)
             os.makedirs(category_dir, exist_ok=True)
+            
+            # Store the mapping of original category to standardized directory name
+            if not hasattr(self, 'category_dir_mapping'):
+                self.category_dir_mapping = {}
+            self.category_dir_mapping[category] = standardized_category
             
         # Log the output directory structure and found categories
         logger.info(f"Papers will be saved to directory: {self.papers_dir}")
@@ -279,7 +282,9 @@ class AcademicCollector:
                         base_filename = self._sanitize_filename(paper.title)
                         filename = f"{base_filename}_{paper_id}"
                         
-                        # Set paths for PDF and metadata
+                        # Set paths for PDF and metadata using standardized category directory
+                        standardized_category = self.category_dir_mapping.get(category, category.lower().replace(' ', '_').replace('-', '_'))
+                        category_dir = os.path.join(self.papers_dir, standardized_category)
                         pdf_path = os.path.join(category_dir, f"{filename}.pdf")
                         
                         # Download paper
