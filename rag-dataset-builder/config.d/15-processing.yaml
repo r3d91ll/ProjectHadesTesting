@@ -1,0 +1,17 @@
+# Processing Configuration for RAG Dataset Builder
+# This file configures the processing settings for document handling
+
+processing:
+  # Batch processing settings
+  batch_size: 10  # Number of documents to process in each batch
+  download_threshold: 10  # Number of documents to download before processing begins
+  
+  # Resource allocation
+  num_workers: 2  # Number of parallel workers (matching your 2 GPUs)
+  max_ram_usage_gb: 128  # Maximum RAM to use during processing (optimized for Threadripper)
+  
+  # Processing behavior
+  incremental: true  # Process documents incrementally vs. all at once
+  verbose: true
+  max_retries: 3
+  timeout: 600  # seconds

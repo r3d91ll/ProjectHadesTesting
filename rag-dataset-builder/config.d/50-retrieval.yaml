@@ -6,7 +6,7 @@ retrieval_systems:
   pathrag:
     type: "pathrag"
     storage_backend: "networkx"  # Which storage backend to use
-    embedder: "openai"  # Which embedder to use
+    embedder: "openai"  # Which embedder to use for retrieval (overrides the CPU/GPU embedder settings)
     chunker: "sliding_window"  # Which chunker to use
     processor: "pdf"  # Default processor for documents
     

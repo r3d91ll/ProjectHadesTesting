@@ -1,0 +1,22 @@
+# Plugin Discovery Configuration for RAG Dataset Builder
+# This file configures the plugin discovery settings
+
+plugins:
+  # Plugin discovery settings
+  auto_discover: true
+  
+  # Directories to scan for plugins
+  scan_directories:
+    - "../src/implementations"
+    - "../src/processors"
+    - "../src/chunkers"
+    - "../src/embedders"
+    - "../src/formatters"
+    - "../src/collectors"
+    - "../src/trackers"
+    - "../src/storage"
+    
+  # Plugin loading behavior
+  lazy_loading: true
+  cache_plugins: true
+  reload_on_change: true

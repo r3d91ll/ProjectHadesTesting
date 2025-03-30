@@ -1,0 +1,26 @@
+# Licensing Configuration for RAG Dataset Builder
+# This file configures the licensing settings for collected data
+
+licensing:
+  # Default license for collected data
+  default_license: "CC-BY-4.0"
+  
+  # License options
+  available_licenses:
+    - "CC-BY-4.0"
+    - "CC-BY-SA-4.0"
+    - "CC-BY-NC-4.0"
+    - "CC-BY-ND-4.0"
+    - "CC-BY-NC-SA-4.0"
+    - "CC-BY-NC-ND-4.0"
+    - "CC0-1.0"
+    - "MIT"
+    - "Apache-2.0"
+    
+  # Attribution settings
+  require_attribution: true
+  attribution_format: "Data provided by ${source} under ${license} license"
+  
+  # License verification
+  verify_licenses: true
+  allow_unlicensed: false

@@ -1,0 +1,68 @@
+# GraphRAG-specific Configuration
+# This configuration contains settings specific to the GraphRAG implementation
+
+# GraphRAG database configuration
+graphrag:
+  enabled: true
+  
+  # Database settings
+  database:
+    name: "graphrag"
+    vector_dimensions: 768
+    similarity_metric: "cosine"
+    
+  # Graph-specific settings
+  graph:
+    node_types:
+      - document
+      - chunk
+      - entity
+      - concept
+    edge_types:
+      - contains
+      - references
+      - similar_to
+      - related_to
+    
+  # Entity extraction settings
+  entity_extraction:
+    enabled: true
+    types:
+      - person
+      - organization
+      - location
+      - date
+      - concept
+    
+  # Chunking settings optimized for GraphRAG
+  chunking:
+    chunk_size: 250
+    chunk_overlap: 75
+    respect_sentences: true
+    min_chunk_size: 100
+    
+  # Output formatting
+  output:
+    format: "graphrag"
+    include_metadata: true
+    include_embeddings: true
+    include_text: true
+    include_entities: true
+    include_relationships: true
+    
+  # GraphRAG-specific processing options
+  processing:
+    build_knowledge_graph: true
+    extract_entities: true
+    compute_relationships: true
+    
+# Output formatter configuration specific to GraphRAG
+output:
+  formatters:
+    graphrag:
+      enabled: true
+      type: "graphrag"
+      output_dir: "../rag_databases/graphrag"
+      
+# Default output formatter to use
+default_output_formatter: "graphrag"

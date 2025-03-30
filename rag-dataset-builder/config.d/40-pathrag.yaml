@@ -1,0 +1,43 @@
+# PathRAG-specific Configuration
+# This configuration contains settings specific to the PathRAG implementation
+
+# PathRAG database configuration
+pathrag:
+  enabled: true
+  
+  # Database settings
+  database:
+    name: "pathrag"
+    vector_dimensions: 768
+    similarity_metric: "cosine"
+    
+  # Chunking settings optimized for PathRAG
+  chunking:
+    chunk_size: 300
+    chunk_overlap: 50
+    respect_sentences: true
+    min_chunk_size: 100
+    
+  # Output formatting
+  output:
+    format: "pathrag"
+    include_metadata: true
+    include_embeddings: true
+    include_text: true
+    
+  # PathRAG-specific processing options
+  processing:
+    hierarchical_chunks: true
+    preserve_document_structure: true
+    extract_citations: true
+    
+# Output formatter configuration specific to PathRAG
+output:
+  formatters:
+    pathrag:
+      enabled: true
+      type: "pathrag"
+      output_dir: "../rag_databases/pathrag"
+      
+# Default output formatter to use
+default_output_formatter: "pathrag"

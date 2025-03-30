@@ -1,0 +1,28 @@
+# RAM Disk Directory Configuration for RAG Dataset Builder
+# IMPORTANT: This file defines RAM disk paths used when RAM disk is enabled.
+# These paths OVERRIDE the persistent storage paths in config.yaml when RAM disk is used.
+
+# Component-specific directories (used regardless of RAM disk setting)
+directories:
+  # These are used when RAM disk is ENABLED (via run_unified.sh)
+  # They are temporary in-memory locations
+  input: "/tmp/ramdisk_source_documents"  # RAM disk path for source documents
+  output: "/tmp/ramdisk_rag_databases"    # RAM disk path for output database
+  
+  # These directories are always on disk (not in RAM)
+  cache: "../cache"  # Persistent cache location
+  logs: "../logs"    # Log files location
+  temp: "../temp"    # Temporary files
+  plugins: "../plugins"  # Plugin directory
+  models: "../models"    # Model files
+
+# TEMPORARY PATHS: Used only when RAM disk is enabled
+# These override the persistent paths in config.yaml
+
+# Source documents directory (RAM disk path)
+# This overrides 'source_documents' from config.yaml when RAM disk is enabled
+source_documents_dir: "/tmp/ramdisk_source_documents"
+
+# Output directory for processed data (RAM disk path)
+# This overrides 'output_dir' from config.yaml when RAM disk is enabled
+output_dir: "/tmp/ramdisk_rag_databases/pathrag_cpu"

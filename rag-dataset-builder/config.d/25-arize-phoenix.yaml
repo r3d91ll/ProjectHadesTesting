@@ -1,0 +1,25 @@
+# Arize Phoenix Configuration
+# Persistent storage and connection settings
+
+performance_tracking:
+  enabled: true
+  project_name: "pathrag-dataset-builder"
+  
+  # Persistent storage settings
+  storage:
+    enabled: true
+    path: "../monitoring/arize_phoenix"
+    
+  # Connection settings
+  phoenix_url: "http://localhost:8084"
+  batch_size: 50  # Reduced from 100 to 50 for better performance
+  
+  # Tracking options
+  track_document_processing: true
+  track_chunking: true
+  track_embedding_generation: true
+  track_output_generation: true
+  track_system_resources: true
+  
+  # Logging settings
+  log_level: "info"

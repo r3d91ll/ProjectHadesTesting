@@ -130,8 +130,14 @@ def discover_plugins() -> None:
                 continue  # Skip packages, only import modules
             
             try:
-                module = importlib.import_module(f"{plugin_dir}.{name}")
-                logger.info(f"Loaded plugin module: {plugin_dir}.{name}")
+                # Try importing as a relative module from src first
+                try:
+                    module = importlib.import_module(f"src.{plugin_dir}.{name}")
+                    logger.info(f"Loaded plugin module: src.{plugin_dir}.{name}")
+                except ImportError:
+                    # Fall back to direct import if relative import fails
+                    module = importlib.import_module(f"{plugin_dir}.{name}")
+                    logger.info(f"Loaded plugin module: {plugin_dir}.{name}")
             except ImportError as e:
                 logger.error(f"Error importing plugin module {plugin_dir}.{name}: {e}")
 

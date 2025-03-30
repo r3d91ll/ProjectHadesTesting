@@ -1,0 +1,49 @@
+# LiteRAG-specific Configuration
+# This configuration contains settings specific to the LiteRAG implementation
+
+# LiteRAG database configuration
+literag:
+  enabled: true
+  
+  # Database settings
+  database:
+    name: "literag"
+    vector_dimensions: 768
+    similarity_metric: "cosine"
+    
+  # Lightweight storage options
+  storage:
+    type: "sqlite"  # Lightweight database for portable deployment
+    compression: true  # Enable compression to reduce storage requirements
+    index_type: "hnsw"  # Hierarchical Navigable Small World for efficient search
+    
+  # Chunking settings optimized for LiteRAG
+  chunking:
+    chunk_size: 200  # Smaller chunks for more efficient storage
+    chunk_overlap: 30  # Minimal overlap to reduce redundancy
+    respect_sentences: true
+    min_chunk_size: 50
+    
+  # Output formatting
+  output:
+    format: "literag"
+    include_metadata: true
+    include_embeddings: true
+    include_text: true
+    
+  # LiteRAG-specific processing options
+  processing:
+    optimize_for_size: true
+    quantize_embeddings: true  # Reduce embedding precision for smaller size
+    prune_similar_chunks: true  # Remove highly similar chunks to reduce redundancy
+    
+# Output formatter configuration specific to LiteRAG
+output:
+  formatters:
+    literag:
+      enabled: true
+      type: "literag"
+      output_dir: "../rag_databases/literag"
+      
+# Default output formatter to use
+default_output_formatter: "literag"

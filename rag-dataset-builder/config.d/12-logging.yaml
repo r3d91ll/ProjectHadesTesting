@@ -1,0 +1,21 @@
+# Logging Configuration for RAG Dataset Builder
+# This file configures the logging settings
+
+logging:
+  # Log level settings
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  
+  # File logging settings
+  log_to_file: true
+  log_file: "${directories.logs}/rag_dataset_builder.log"
+  
+  # Console logging
+  log_to_console: true
+  console_level: "DEBUG"
+  
+  # Rotation settings
+  max_file_size_mb: 10
+  backup_count: 5
+  rotate_on_size: true

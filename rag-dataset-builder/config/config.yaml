@@ -1,11 +1,19 @@
 # RAG Dataset Builder Configuration
 # Comprehensive configuration file that supports all knowledge domains
 
-# Source documents directory (one level up from the RAG implementation)
-source_documents_dir: "../source_documents"
+# Directories
+directories:
+  cache: "../cache"  # Disk location for cache
+  logs: "../logs"
 
-# Output directory for processed data (direct to PathRAG database location)
-output_dir: "../rag_databases/pathrag"
+# Disk storage locations (persistent storage)
+source_documents: "../source_documents"  # Actual disk location for source documents
+# Base directory for processed data
+output_dir: "../rag_databases/pathrag_cpu_test1"
+
+# Note: RAM disk configuration has been moved to scripts/ramdisk_config.sh
+# This simplifies configuration and maintains proper separation of concerns
+# The shell script handles RAM disk mounting, while the Python code just uses the provided paths
 
 # Input/Output configuration
 input:
@@ -22,29 +30,15 @@ input:
     - "**/.git/**"
     - "**/node_modules/**"
 
-# Document processor configuration
-processor:
-  type: "auto"  # Options: auto, simple_text, pdf, code
-  # auto will select the appropriate processor based on file extension
-  extract_metadata: true
-  fallback_to_pdfminer: true
-  license_tracking: true  # Explicitly track license information
+# Document processor configuration is in config.d/10-processors.yaml
 
-# Text chunking configuration  
+# Text chunking configuration is in config.d/20-chunkers.yaml
 chunker:
-  type: "semantic"  # Options: sliding_window, semantic, fixed_size
-  chunk_size: 300  # Maximum chunk size (words for sliding_window, characters for semantic)
-  chunk_overlap: 50  # Overlap between chunks
-  respect_sentences: true
-  min_chunk_size: 100
+  type: "semantic"  # Default chunker type
 
-# Embedding generation configuration
+# Embedding generation configuration is in config.d/30-embedders.yaml
 embedder:
-  type: "sentence_transformer"  # Options: sentence_transformer, openai
-  model_name: "all-MiniLM-L6-v2"  # Embedding model name
-  batch_size: 32  # Batch size for embedding generation
-  use_gpu: true  # Use GPU acceleration (will use your RTX A6000 GPUs)
-  cache_embeddings: true
+  type: "sentence_transformers"  # Default embedder type
 
 # Output formatter configuration  
 output:
@@ -88,217 +82,16 @@ output:
       include_metadata: true
       include_chunks: true
 
-# Collection settings
-collection:
-  enabled: true
-  type: "academic"
-  source: "multi"
-  max_papers_per_term: 20
-  
-  # Academic source API configurations
-  sources:
-    arxiv:
-      enabled: true
-      rate_limit:
-        requests_per_minute: 60  # arXiv API recommendation
-        max_retries: 3
-        backoff_factor: 2.0
-      sort_by: "relevance"  # Options: "relevance", "lastUpdatedDate", "submittedDate"
-      search_fields:
-        - "title"
-        - "abstract"
-        - "author"
-    
-    semantic_scholar:
-      enabled: false
-      api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
-      rate_limit:
-        requests_per_minute: 60
-        max_retries: 3
-        backoff_factor: 2.0
-    
-    pubmed:
-      enabled: false
-      api_key: "${PUBMED_API_KEY}"
-      email: "${PUBMED_EMAIL}"
-    
-    socarxiv:
-      enabled: true
-      osf_token: "${OSF_TOKEN}"
-      
-    # JSTOR configuration template (commented out)
-    # jstor:
-    #   enabled: false  # Set to true when credentials are configured
-    #   # Authentication settings
-    #   auth_type: "oauth2"  # JSTOR uses OAuth 2.0
-    #   client_id: "${JSTOR_CLIENT_ID}"
-    #   client_secret: "${JSTOR_CLIENT_SECRET}"
-    #   username: "${JSTOR_USERNAME}"  # Institutional login if applicable
-    #   password: "${JSTOR_PASSWORD}"  # Institutional password if applicable
-    #   # API settings
-    #   base_url: "https://www.jstor.org/api/"
-    #   version: "v1"
-    #   rate_limit:
-    #     requests_per_minute: 30  # JSTOR has strict rate limits
-    #     max_retries: 3
-    #     backoff_factor: 4.0
-    #     max_parallel_requests: 2
-    #   # Search settings
-    #   search_fields:
-    #     - "full-text"
-    #     - "title"
-    #     - "author"
-    #     - "abstract"
-    #   content_types:
-    #     - "articles"  # Other options: "books", "pamphlets", "proceedings"
-    #   include_disciplines:
-    #     - "anthropology"
-    #     - "sociology"
-    #     - "science and technology studies"
-    #   # File handling
-    #   download_pdf: true
-    #   extract_text: true
-    #   store_metadata: true
+# Collection settings are now in config.d/18-collection.yaml
 
-  # Knowledge domain-specific search terms
-  # You can enable/disable specific domains as needed
-  domains:
-    anthropology_of_value:
-      enabled: true
-      search_terms:
-        - "anthropology of value"
-        - "value systems anthropology"
-        - "cultural value exchange"
-        - "economic anthropology"
-        - "gift economy"
-        - "value creation anthropology"
-        - "moral economy"
-        - "exchange theory anthropology"
-        - "cultural capital"
-        - "symbolic value anthropology"
-    
-    science_technology_studies:
-      enabled: true
-      search_terms:
-        - "science and technology studies"
-        - "actor network theory"
-        - "technological determinism"
-        - "sociotechnical systems"
-        - "social construction of technology"
-        - "technoscience"
-        - "technology sociology"
-        - "feminist technoscience"
-        - "technological infrastructure"
-        - "science policy"
-    
-    interdisciplinary:
-      enabled: true
-      search_terms:
-        - "value in technological systems"
-        - "ethics in technology anthropology"
-        - "cultural impact of technology"
-        - "indigenous knowledge technology"
-        - "digital anthropology"
-        - "anthropology of computing"
-        - "technology adoption cultures"
-        - "value-sensitive design"
-    
-    ai_ethics:
-      enabled: true
-      search_terms:
-        - "ai ethics"
-        - "algorithmic fairness"
-        - "machine learning bias"
-    
-    computer_science:
-      enabled: true
-      search_terms:
-        - "knowledge representation"
-        - "natural language processing"
-        - "machine learning"
-        - "graph theory"
-        - "network analysis"
-        - "social network analysis"
-        - "complex networks"
-        - "social media analytics"
-        - "data visualization"
-        - "information visualization"
-        - "retrieval augmented generation"
-        - "graph retrieval augmented generation"
-        - "retrieval-augmented generation"
-        - "RAG architecture"
-        - "graph-based RAG"
-        - "hybrid retrieval models"
-        - "semantic search for LLMs"
-        - "document retrieval for language models"
-        - "vector search in RAG"
-        - "knowledge-enhanced language models"
-        - "information retrieval pipelines for LLMs"
-        - "multi-hop retrieval"
-        - "graph databases for AI"
-        - "graph neural networks"
-        - "knowledge graphs"
-        - "heterogeneous information networks"
-        - "graph traversal algorithms"
-        - "Neo4j for machine learning"
-        - "graph embeddings"
-        - "graph-based knowledge retrieval"
-        - "graph-structured data in NLP"
-        - "GNN RAG systems"
-        - "prompt engineering strategies"
-        - "zero-shot prompting"
-        - "few-shot learning"
-        - "instruction tuning"
-        - "chain-of-thought prompting"
-        - "prompt tuning vs fine-tuning"
-        - "prompt injection and defense"
-        - "system message optimization"
-        - "prompt templates for code generation"
-        - "input-output prompt pairs"
-        - "transformer architecture"
-        - "decoder-only models"
-        - "encoder-decoder models"
-        - "Mixture of Experts (MoE)"
-        - "scalable LLM infrastructure"
-        - "attention mechanisms"
-        - "position embeddings"
-        - "tokenization strategies"
-        - "parameter-efficient tuning (LoRA, PEFT)"
-        - "open-source LLM architecture"
-        - "retrieval pipelines for LLMs"
-        - "langchain RAG"
-        - "vector store integrations"
-        - "milvus and langchain"
-        - "chroma DB"
-        - "ArangoDB vector search"
-        - "RAG implementation with FAISS"
-        - "pipeline orchestration for ML"
-        - "data chunking for retrieval"
-        - "context window optimization"
+# Knowledge domain-specific search terms are now in config.d/19-domains.yaml
 
-# Processing configuration
-processing:
-  batch_size: 5  # Number of documents to process in each batch
-  download_threshold: 10  # Number of documents to download before processing begins
-  num_workers: 2  # Number of parallel workers (matching your 2 GPUs)
-  max_ram_usage_gb: 16  # Maximum RAM to use during processing
-  incremental: true  # Process documents incrementally vs. all at once
-  verbose: true
+# Processing configuration is in config.d/15-processing.yaml
 
-# Performance tracking with Arize Phoenix
-performance_tracking:
-  enabled: true
-  project_name: "pathrag-dataset-builder"
-  phoenix_url: "http://localhost:8084"
-  batch_size: 100
-  track_document_processing: true
-  track_chunking: true
-  track_embedding_generation: true
-  track_output_generation: true
+# Logging configuration is in config.d/12-logging.yaml
 
-# Logging settings
-logging:
-  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  log_to_file: true
-  log_file: "./logs/rag_dataset_builder.log"
-  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Plugin discovery settings are in config.d/13-plugins.yaml
+
+# Performance tracking configuration is in config.d/25-arize-phoenix.yaml
+
+# Licensing settings are in config.d/14-licensing.yaml

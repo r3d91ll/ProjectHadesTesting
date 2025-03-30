@@ -1,0 +1,51 @@
+# Academic Paper Collection Configuration for RAG Dataset Builder
+# This file configures the document collection and download process
+
+# Collection settings
+collection:
+  enabled: true  # Master switch - set to false to disable all document collection
+  type: "academic"
+  source: "multi"
+  max_papers_per_term: 10  # Default reasonable value when collection is enabled
+  max_documents_per_category: 100  # Default reasonable value when collection is enabled
+  max_download_size_mb: 500  # Default reasonable value when collection is enabled
+  download_delay: 1.0  # Default reasonable delay between requests
+  scrape_images: false
+  
+  # Academic source API configurations
+  sources:
+    arxiv:
+      enabled: true  # Enable arXiv for paper collection
+      rate_limit:
+        requests_per_minute: 60  # arXiv API recommendation
+        max_retries: 3
+        backoff_factor: 2.0
+      sort_by: "relevance"  # Options: "relevance", "lastUpdatedDate", "submittedDate"
+      search_fields:
+        - "title"
+        - "abstract"
+        - "author"
+    
+    semantic_scholar:
+      enabled: false
+      api_key: "${SEMANTIC_SCHOLAR_API_KEY}"
+      rate_limit:
+        requests_per_minute: 60
+        max_retries: 3
+        backoff_factor: 2.0
+    
+    pubmed:
+      enabled: false
+      api_key: "${PUBMED_API_KEY}"
+      email: "${PUBMED_EMAIL}"
+      rate_limit:
+        requests_per_minute: 10
+        max_retries: 3
+        backoff_factor: 2.0
+    
+    socarxiv:
+      enabled: false
+      rate_limit:
+        requests_per_minute: 30
+        max_retries: 3
+        backoff_factor: 2.0

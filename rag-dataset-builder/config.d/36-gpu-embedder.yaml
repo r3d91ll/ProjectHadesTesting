@@ -1,0 +1,25 @@
+# GPU-based Embedder Configuration for PathRAG Dataset Builder
+# This configuration is applied when using the --gpu flag
+
+# Override the default sentence_transformers embedder to use GPU
+embedders:
+  # This overrides the default CPU configuration in 30-embedders.yaml
+  sentence_transformers:
+    type: "sentence_transformers"
+    model: "all-mpnet-base-v2"  # Same model as CPU for consistency
+    dimensions: 768
+    batch_size: 32  # Smaller batch size optimized for GPU
+    cache_embeddings: true
+    device: "cuda"  # Use GPU acceleration
+    normalize_embeddings: true
+
+# Processing configuration
+processing:
+  batch_size: 10  # Process documents in batches of 10
+  num_workers: 4  # Fewer workers for GPU processing to avoid bottlenecks
+  use_cpu_only: false  # Use GPU for processing
+
+# Disable collection to prevent downloading documents again
+# Enable collection to download academic papers
+collection:
+  enabled: true

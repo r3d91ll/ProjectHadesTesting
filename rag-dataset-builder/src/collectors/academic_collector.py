@@ -23,11 +23,16 @@ import arxiv
 from bs4 import BeautifulSoup
 
 # Configure logging
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+os.makedirs(logs_dir, exist_ok=True)
+
+# Set up logging to use the logs directory
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("academic_collector.log"),
+        logging.FileHandler(os.path.join(logs_dir, "academic_collector.log")),
         logging.StreamHandler()
     ]
 )
@@ -65,25 +70,35 @@ class AcademicCollector:
         else:
             logger.warning("No search terms found in configuration")
             
-            # Last-ditch attempt - hardcode some search terms for testing
+            # Check if we should use default search terms
             if not self.categories:
-                logger.warning("Using default search terms for testing")
-                self.categories = {
-                    "anthropology_of_value": [
-                        "anthropology of value",
-                        "economic anthropology",
-                        "gift economy"
-                    ],
-                    "science_technology_studies": [
-                        "science and technology studies",
-                        "actor network theory",
-                        "technological determinism"
-                    ]
-                }
-                # Create directories for hardcoded categories
-                for category in self.categories.keys():
-                    category_dir = os.path.join(self.papers_dir, category)
-                    os.makedirs(category_dir, exist_ok=True)
+                # Only use hardcoded terms if explicitly enabled
+                use_default_terms = False
+                if use_default_terms:
+                    logger.info("Using default search terms for testing")
+                else:
+                    logger.warning("No search terms found and default terms are disabled. Please check your config file.")
+                    
+                if use_default_terms:
+                    self.categories = {
+                        "anthropology_of_value": [
+                            "anthropology of value",
+                            "economic anthropology",
+                            "gift economy"
+                        ],
+                        "science_technology_studies": [
+                            "science and technology studies",
+                            "actor network theory",
+                            "technological determinism"
+                        ]
+                    }
+                    # Create directories for hardcoded categories
+                    for category in self.categories.keys():
+                        category_dir = os.path.join(self.papers_dir, category)
+                        os.makedirs(category_dir, exist_ok=True)
+                    logger.warning("Using hardcoded default search terms")
+                else:
+                    logger.warning("No search terms found and default terms are disabled")
         
         # Create category subdirectories with standardized naming
         for category in self.categories.keys():
@@ -138,6 +153,20 @@ class AcademicCollector:
         # Initialize categories dictionary
         self.categories = {}
         
+        # Extract collection settings
+        if "collection" in config:
+            self.max_papers_per_term = config["collection"].get("max_papers_per_term", 0)
+            self.max_documents_per_category = config["collection"].get("max_documents_per_category", 0)
+            self.download_delay = config["collection"].get("download_delay", 1.0)
+            self.max_download_size_mb = config["collection"].get("max_download_size_mb", 500)
+            logger.info(f"Loaded collection settings: max_papers_per_term={self.max_papers_per_term}, max_documents_per_category={self.max_documents_per_category}")
+        else:
+            self.max_papers_per_term = 0
+            self.max_documents_per_category = 0
+            self.download_delay = 1.0
+            self.max_download_size_mb = 500
+            logger.warning("No collection settings found in config, using defaults")
+        
         # Debug: print top-level keys
         logger.debug(f"Config keys: {sorted(list(config.keys()))}")
         
@@ -148,21 +177,21 @@ class AcademicCollector:
             academic = config["academic"]
             if "domains" in academic and isinstance(academic["domains"], dict):
                 for domain, domain_config in academic["domains"].items():
-                    if isinstance(domain_config, dict) and "search_terms" in domain_config and domain_config.get("enabled", True):
+                    if isinstance(domain_config, dict) and "search_terms" in domain_config and domain_config.get("enabled", False):
                         self.categories[domain] = domain_config["search_terms"]
                         logger.info(f"Found search terms for {domain} in academic.domains")
         
         # Check in the top-level domains section
         if not self.categories and "domains" in config and isinstance(config["domains"], dict):
             for domain, domain_config in config["domains"].items():
-                if isinstance(domain_config, dict) and "search_terms" in domain_config and domain_config.get("enabled", True):
+                if isinstance(domain_config, dict) and "search_terms" in domain_config and domain_config.get("enabled", False):
                     self.categories[domain] = domain_config["search_terms"]
                     logger.info(f"Found search terms for {domain} in domains")
         
         # Direct check for anthropology_of_value and other domains
         domain_names = ["anthropology_of_value", "science_technology_studies", "interdisciplinary", "ai_ethics", "computer_science"]
         for domain in domain_names:
-            if domain in config and isinstance(config[domain], dict) and "search_terms" in config[domain] and config[domain].get("enabled", True):
+            if domain in config and isinstance(config[domain], dict) and "search_terms" in config[domain] and config[domain].get("enabled", False):
                 self.categories[domain] = config[domain]["search_terms"]
                 logger.info(f"Found search terms for {domain} at top level")
         
@@ -177,7 +206,7 @@ class AcademicCollector:
             
             # Check for academic domains under collection
             for domain in domain_names:
-                if domain in collection and isinstance(collection[domain], dict) and "search_terms" in collection[domain] and collection[domain].get("enabled", True):
+                if domain in collection and isinstance(collection[domain], dict) and "search_terms" in collection[domain] and collection[domain].get("enabled", False):
                     self.categories[domain] = collection[domain]["search_terms"]
                     logger.info(f"Found search terms for {domain} in collection section")
         
@@ -213,6 +242,34 @@ class AcademicCollector:
             papers_per_term: Number of papers to collect per search term (overrides max_papers_per_category division)
             check_duplicates: Whether to check for and skip duplicate papers by paper ID
         """
+        # Check if collection is enabled in the configuration - this is the master switch
+        if "collection" not in self.config or not isinstance(self.config["collection"], dict) or not self.config["collection"].get("enabled", False):
+            logger.info("Document collection is disabled in the configuration. Skipping paper collection.")
+            return
+            
+        # Get collection parameters from config
+        if "collection" in self.config and isinstance(self.config["collection"], dict):
+            collection_config = self.config["collection"]
+            
+            # Override method parameters with config values if provided
+            if "max_documents_per_category" in collection_config:
+                config_max_papers = collection_config["max_documents_per_category"]
+                # Ensure the value is valid (greater than 0)
+                if isinstance(config_max_papers, (int, float)) and config_max_papers > 0:
+                    max_papers_per_category = int(config_max_papers)
+                    logger.info(f"Using max_documents_per_category from config: {max_papers_per_category}")
+                else:
+                    logger.warning(f"Invalid max_documents_per_category in config: {config_max_papers}. Using default: {max_papers_per_category}")
+            
+            if "max_papers_per_term" in collection_config and papers_per_term is None:
+                config_papers_per_term = collection_config["max_papers_per_term"]
+                # Ensure the value is valid (greater than 0)
+                if isinstance(config_papers_per_term, (int, float)) and config_papers_per_term > 0:
+                    papers_per_term = int(config_papers_per_term)
+                    logger.info(f"Using max_papers_per_term from config: {papers_per_term}")
+                else:
+                    logger.warning(f"Invalid max_papers_per_term in config: {config_papers_per_term}. Will calculate based on max_documents_per_category.")
+                
         logger.info("Collecting papers from arXiv")
         
         # Track downloaded paper IDs to avoid duplicates
@@ -245,9 +302,13 @@ class AcademicCollector:
             
             logger.info(f"Collecting papers for category: {category}")
             
-            # Calculate papers per term if not explicitly provided
+            # Use class attribute if available, otherwise use the parameter
             if papers_per_term is None:
-                papers_per_term = max(1, max_papers_per_category // len(terms))
+                if hasattr(self, 'max_papers_per_term') and self.max_papers_per_term > 0:
+                    papers_per_term = self.max_papers_per_term
+                    logger.info(f"Using max_papers_per_term from config: {papers_per_term}")
+                else:
+                    papers_per_term = max(1, max_papers_per_category // len(terms))
                 
             logger.info(f"Will download up to {papers_per_term} papers per search term")
             
@@ -384,7 +445,7 @@ class AcademicCollector:
         
         for resource in resources:
             # Skip disabled resources
-            if not resource.get("enabled", True):
+            if not resource.get("enabled", False):
                 logger.info(f"Skipping disabled resource: {resource['name']}")
                 continue
                 

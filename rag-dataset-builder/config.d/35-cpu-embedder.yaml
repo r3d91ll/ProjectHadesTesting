@@ -1,0 +1,21 @@
+# CPU-based Embedder Configuration for PathRAG Dataset Builder
+# This is the default configuration (no special flag needed)
+
+# This file is optional since the default CPU configuration is already in 30-embedders.yaml
+# It's kept here for consistency with the config.d numbering convention and to allow for
+# CPU-specific optimizations if needed in the future
+
+# Processing configuration for CPU mode
+processing:
+  batch_size: 5  # Process fewer documents at once to avoid memory pressure
+  max_workers: 24  # Use all available CPU threads on Threadripper
+
+# Processing configuration
+processing:
+  batch_size: 10  # Process documents in batches of 10
+  num_workers: 12  # Reduced to 12 workers to avoid resource contention
+  use_cpu_only: true  # Force CPU-only mode
+
+# Enable collection to download academic papers
+collection:
+  enabled: true

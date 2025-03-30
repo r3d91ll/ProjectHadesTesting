@@ -13,6 +13,18 @@ volumes:
   arize_data: {}
 
 services:
+
+  # NVIDIA DCGM exporter for GPU metrics
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.1.7-3.1.4-ubuntu20.04
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    ports:
+      - "9400:9400"
+    command: -f /etc/dcgm-exporter/dcp-metrics-included.csv
+
   # Prometheus - Metrics database
   prometheus:
     image: prom/prometheus:v2.48.0
@@ -66,23 +78,8 @@ services:
     ports:
       - "9256:9256"
 
-  # cAdvisor - Container metrics (modified to avoid host docker socket)
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
-    container_name: cadvisor
-    restart: unless-stopped
-    privileged: true
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      # Removed /var/lib/docker volume that was causing issues
-      - /dev/disk/:/dev/disk:ro
-    command:
-      - '--docker_only=false'
-      - '--disable_metrics=disk,diskIO,network,tcp,udp,percpu,sched'
-    ports:
-      - "8082:8084"
+  # Removed cadvisor due to compatibility issues
+  # We'll rely on DCGM for GPU metrics and node-exporter for system metrics
 
   # Grafana - Visualization
   grafana:
@@ -116,6 +113,8 @@ services:
     image: arizephoenix/phoenix:latest
     container_name: arize-phoenix
     restart: unless-stopped
+    environment:
+      - PHOENIX_DB_PATH=/phoenix/data
     volumes:
       - arize_data:/phoenix/data
     ports:

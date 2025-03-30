@@ -13,25 +13,27 @@ embedders:
     timeout: 60  # seconds
     retry_attempts: 3
     
-  # Sentence Transformers configuration
+  # Sentence Transformers configuration (CPU is the default)
   sentence_transformers:
     type: "sentence_transformers"
     model: "all-mpnet-base-v2"
     dimensions: 768
-    batch_size: 32
+    batch_size: 128  # Larger batch size for CPU
     cache_embeddings: true
-    device: "cuda"  # 'cuda' or 'cpu'
+    device: "cpu"  # Default to CPU (use --gpu flag to enable GPU processing)
     normalize_embeddings: true
+    num_threads: 24  # Use multiple CPU threads
     
   # Hugging Face Transformers configuration
   huggingface:
     type: "huggingface"
     model: "intfloat/e5-small-v2"
     dimensions: 384
-    batch_size: 32
+    batch_size: 64  # Larger batch size for CPU
     cache_embeddings: true
-    device: "cuda"  # 'cuda' or 'cpu'
-    use_fp16: true
+    device: "cpu"  # Default to CPU (use --gpu flag to enable GPU processing)
+    use_fp16: false  # Disable FP16 for CPU
+    num_threads: 24  # Use multiple CPU threads
     use_auth_token: "${HF_API_KEY}"  # Loaded from environment variable, optional
     
   # BGE embeddings configuration
@@ -39,20 +41,22 @@ embedders:
     type: "bge"
     model: "BAAI/bge-large-en-v1.5"
     dimensions: 1024
-    batch_size: 32
+    batch_size: 64  # Larger batch size for CPU
     cache_embeddings: true
-    device: "cuda"  # 'cuda' or 'cpu'
-    use_fp16: true
+    device: "cpu"  # Default to CPU (use --gpu flag to enable GPU processing)
+    use_fp16: false  # Disable FP16 for CPU
+    num_threads: 24  # Use multiple CPU threads
     
   # BERT embeddings configuration
   bert:
     type: "bert"
     model: "bert-base-uncased"
     dimensions: 768
-    batch_size: 32
+    batch_size: 64  # Larger batch size for CPU
     cache_embeddings: true
-    device: "cuda"  # 'cuda' or 'cpu'
+    device: "cpu"  # Default to CPU (use --gpu flag to enable GPU processing)
     pooling_strategy: "mean"  # 'mean', 'cls', 'max'
+    num_threads: 24  # Use multiple CPU threads
     
   # Custom embedding service (RESTful API) configuration
   custom_api:

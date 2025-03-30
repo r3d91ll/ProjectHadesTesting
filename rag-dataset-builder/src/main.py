@@ -17,44 +17,58 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 # Import necessary components from our module
-from src.builder import BaseProcessor, BaseChunker, BaseEmbedder, BaseOutputFormatter
-from src.embedders import SentenceTransformerEmbedder, OpenAIEmbedder
-from src.formatters import PathRAGFormatter, VectorDBFormatter, HuggingFaceDatasetFormatter
-from src.processors import SimpleTextProcessor, PDFProcessor, CodeProcessor
-from src.chunkers import SlidingWindowChunker, SemanticChunker
+from .builder import BaseProcessor, BaseChunker, BaseEmbedder, BaseOutputFormatter
+from .embedders import SentenceTransformerEmbedder, OpenAIEmbedder
+from .formatters import PathRAGFormatter, VectorDBFormatter, HuggingFaceDatasetFormatter
+from .processors import SimpleTextProcessor, PDFProcessor, CodeProcessor
+from .chunkers import SlidingWindowChunker, SemanticChunker
 # Import collectors
-from src.collectors import SemanticScholarCollector, PubMedCollector, SocArXivCollector
-from src.collectors.academic_collector import AcademicCollector
+from .collectors import SemanticScholarCollector, PubMedCollector, SocArXivCollector
+from .collectors.academic_collector import AcademicCollector
 # Import Arize Phoenix integration
-from src.utils.arize_integration import get_arize_adapter
+from .utils.arize_integration import get_arize_adapter
 
 # Set up logging
 # Create logs directory if it doesn't exist
-os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs"), exist_ok=True)
+logs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+os.makedirs(logs_dir, exist_ok=True)
 
+# Initial basic logging setup - will be replaced by config-based setup later
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "rag_dataset_builder.log")),
+        logging.FileHandler(os.path.join(logs_dir, "rag_dataset_builder.log")),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("rag_dataset_builder")
 
+# Note: This basic configuration will be replaced when the config is loaded
+# The actual logging configuration comes from the config.d/12-logging.yaml file
+
 
 class RAGDatasetBuilder:
     """Main class for building RAG datasets."""
     
-    def __init__(self, config_file: str):
+    def __init__(self, config_file: str = None, config: Dict[str, Any] = None):
         """
         Initialize the RAG dataset builder.
         
         Args:
             config_file: Path to configuration file
+            config: Configuration dictionary (alternative to config_file)
         """
         self.config_file = config_file
-        self.config = self._load_config(config_file)
+        
+        if config is not None:
+            # Use provided config dictionary
+            self.config = config
+        elif config_file is not None:
+            # Load config from file
+            self.config = self._load_config(config_file)
+        else:
+            raise ValueError("Either config_file or config must be provided")
         
         # Set up input and output directories
         self.data_dir = self.config.get("source_documents_dir", "../source_documents")
@@ -254,6 +268,66 @@ class RAGDatasetBuilder:
         self.checkpoint["last_updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
         with open(self.checkpoint_file, 'w') as f:
             json.dump(self.checkpoint, f, indent=2)
+            
+    def _filter_by_enabled_domains(self, document_paths: List[str]) -> List[str]:
+        """
+        Filter documents based on enabled domains in the configuration.
+        
+        Args:
+            document_paths: List of document paths to filter
+            
+        Returns:
+            Filtered list of document paths
+        """
+        # Check if we should filter by domains
+        if not self.config.get("filter_by_domains", True):
+            logger.info("Domain filtering disabled, processing all documents")
+            return document_paths
+            
+        # Get domains configuration
+        domains_config = {}
+        
+        # Check in academic.domains section
+        academic_config = self.config.get("collection", {}).get("academic", {})
+        if "domains" in academic_config and isinstance(academic_config["domains"], dict):
+            domains_config.update(academic_config["domains"])
+            
+        # Check in top-level domains section
+        if "domains" in self.config and isinstance(self.config["domains"], dict):
+            domains_config.update(self.config["domains"])
+            
+        # If no domains found, return all documents
+        if not domains_config:
+            logger.warning("No domains configuration found, processing all documents")
+            return document_paths
+            
+        # Get enabled domains
+        enabled_domains = []
+        for domain_name, domain_config in domains_config.items():
+            if isinstance(domain_config, dict) and domain_config.get("enabled", True):
+                enabled_domains.append(domain_name)
+                
+        if not enabled_domains:
+            logger.warning("No enabled domains found, processing all documents")
+            return document_paths
+            
+        logger.info(f"Filtering documents for enabled domains: {', '.join(enabled_domains)}")
+        
+        # Filter documents by domain
+        filtered_paths = []
+        for doc_path in document_paths:
+            # Extract domain from path
+            path_parts = Path(doc_path).parts
+            
+            # Check if any enabled domain is in the path
+            for domain in enabled_domains:
+                domain_path = domain.replace('_', '-')  # Convert underscores to hyphens for path matching
+                if any(domain in part or domain_path in part for part in path_parts):
+                    filtered_paths.append(doc_path)
+                    break
+                    
+        logger.info(f"Filtered {len(document_paths)} documents to {len(filtered_paths)} based on enabled domains")
+        return filtered_paths
     
     def find_all_documents(self) -> List[str]:
         """
@@ -277,6 +351,9 @@ class RAGDatasetBuilder:
             exclusion_files = list(Path(self.data_dir).glob(pattern))
             exclusion_paths = [str(f) for f in exclusion_files]
             document_paths = [p for p in document_paths if p not in exclusion_paths]
+            
+        # Filter documents based on enabled domains
+        document_paths = self._filter_by_enabled_domains(document_paths)
         
         # Filter out already processed files
         document_paths = [
@@ -488,20 +565,89 @@ class RAGDatasetBuilder:
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as temp_config:
                     # Create a simplified config with the proper structure
                     arxiv_config = {
-                        "domains": {}
+                        "domains": {},
+                        "collection": {
+                            "enabled": collection_config.get("enabled", False),  # Include the enabled flag
+                            "max_papers_per_term": collection_config.get("max_papers_per_term", 0),
+                            "max_documents_per_category": collection_config.get("max_documents_per_category", 0),
+                            "download_delay": collection_config.get("download_delay", 1.0),
+                            "max_download_size_mb": collection_config.get("max_download_size_mb", 500)
+                        }
                     }
                     
+                    # Log whether collection is enabled or disabled
+                    logger.info(f"Collection enabled: {collection_config.get('enabled', False)}")
+                    
+                    # Log collection settings for debugging
+                    logger.info(f"Collection settings: max_papers_per_term={collection_config.get('max_papers_per_term', 0)}, "
+                               f"max_documents_per_category={collection_config.get('max_documents_per_category', 0)}")
+                    
+                    # Debug the domains configuration
+                    logger.info(f"Domains config type: {type(domains_config)}, keys: {list(domains_config.keys()) if isinstance(domains_config, dict) else 'Not a dict'}")
+                    
                     # Add search terms from domains with proper structure
+                    enabled_domains = []
+                    
+                    # If domains_config is not a dictionary or is empty, try to load it directly from the domains file
+                    if not isinstance(domains_config, dict) or not domains_config:
+                        logger.warning("Domains config is not properly loaded, attempting to load directly from config.d/19-domains.yaml")
+                        # Try to find the domains file in the temp config directory
+                        domains_file = None
+                        
+                        # Check if we have a config_dir attribute
+                        if hasattr(self, 'config_dir') and self.config_dir:
+                            domains_file = os.path.join(self.config_dir, "19-domains.yaml")
+                        else:
+                            # Try to find the domains file in the original config.d directory
+                            original_config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config.d")
+                            domains_file = os.path.join(original_config_dir, "19-domains.yaml")
+                            # Also check the temp directory
+                            temp_config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config.d", "temp")
+                            if os.path.exists(os.path.join(temp_config_dir, "19-domains.yaml")):
+                                domains_file = os.path.join(temp_config_dir, "19-domains.yaml")
+                        
+                        logger.info(f"Looking for domains file at: {domains_file}")
+                        
+                        if domains_file and os.path.exists(domains_file):
+                            try:
+                                with open(domains_file, 'r') as f:
+                                    domains_data = yaml.safe_load(f)
+                                    if isinstance(domains_data, dict) and 'domains' in domains_data:
+                                        domains_config = domains_data['domains']
+                                        logger.info(f"Loaded domains directly from file: {list(domains_config.keys())}")
+                                    else:
+                                        logger.warning(f"Domains file does not contain 'domains' key: {list(domains_data.keys()) if isinstance(domains_data, dict) else 'Not a dict'}")
+                            except Exception as e:
+                                logger.error(f"Error loading domains file: {e}")
+                        else:
+                            logger.error(f"Domains file not found at {domains_file}")
+                    
+                    # Now process the domains
                     for domain_name, domain_config in domains_config.items():
                         if domain_config.get("enabled", True):
-                            arxiv_config["domains"][domain_name] = {
-                                "enabled": True,
-                                "search_terms": domain_config.get("search_terms", [])
-                            }
+                            search_terms = domain_config.get("search_terms", [])
+                            if search_terms:  # Only add domains that have search terms
+                                arxiv_config["domains"][domain_name] = {
+                                    "enabled": True,
+                                    "search_terms": search_terms
+                                }
+                                enabled_domains.append(domain_name)
+                                # Log the search terms for debugging
+                                logger.info(f"Domain '{domain_name}' has {len(search_terms)} search terms: {search_terms[:3]}...")
+                            else:
+                                logger.warning(f"Domain '{domain_name}' is enabled but has no search terms")
+                    
+                    # Log the domains being used
+                    logger.info(f"Using domains for ArXiv collection: {enabled_domains}")
                     
                     # Write config to temp file
                     yaml.dump(arxiv_config, temp_config)
                     temp_config_path = temp_config.name
+                    
+                    # Debug the temporary config file
+                    logger.info(f"Created temporary config file at {temp_config_path}")
+                    with open(temp_config_path, 'r') as f:
+                        logger.debug(f"Temporary config file contents:\n{f.read()}")
                 
                 # Initialize academic collector
                 academic_collector = AcademicCollector(temp_config_path, self.data_dir)
@@ -587,43 +733,326 @@ class RAGDatasetBuilder:
 
     def build_dataset(self) -> None:
         """Build the RAG dataset."""
-        logger.info("Starting RAG dataset build")
+        import time
+        from datetime import datetime
+        
+        # Record start time
+        start_time = time.time()
+        start_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"Starting RAG dataset build at {start_datetime}")
+        
+        # Log GPU/CPU configuration
+        gpu_status = "GPU" if self.config.get("embedder", {}).get("use_gpu", False) else "CPU"
+        logger.info(f"Using {gpu_status} for embedding generation")
         
         # Run collectors first to download documents
         self._run_collectors()
         
         # Find all documents (including newly downloaded ones)
         document_paths = self.find_all_documents()
+        doc_count = len(document_paths)
+        logger.info(f"Found {doc_count} documents to process")
         
         if not document_paths:
             logger.info("No new documents to process")
             return
         
         # Process documents in batches
+        processing_start = time.time()
+        logger.info(f"Starting document processing at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         self.process_documents_in_batches(document_paths)
+        processing_end = time.time()
+        processing_time = processing_end - processing_start
         
         # Final save
         self._save_checkpoint()
         
-        logger.info(f"Dataset build complete. Processed {len(self.checkpoint['processed_files'])} documents "
-                  f"with {self.checkpoint['total_chunks']} chunks.")
+        # Calculate and log timing information
+        end_time = time.time()
+        end_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        total_time = end_time - start_time
+        hours, remainder = divmod(total_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        # Create performance summary
+        logger.info(f"Dataset build complete at {end_datetime}")
+        logger.info(f"Total processing time: {int(hours)}h {int(minutes)}m {int(seconds)}s")
+        logger.info(f"Documents processed: {len(self.checkpoint['processed_files'])}")
+        logger.info(f"Total chunks: {self.checkpoint['total_chunks']}")
+        logger.info(f"Chunks per second: {self.checkpoint['total_chunks'] / total_time:.2f}")
+        logger.info(f"Documents per second: {len(self.checkpoint['processed_files']) / total_time:.2f}")
+        
+        # Save timing information to a file
+        timing_file = os.path.join(self.output_dir, "timing_info.txt")
+        with open(timing_file, "w") as f:
+            f.write(f"Build Configuration: {gpu_status}-based embedding\n")
+            f.write(f"Start time: {start_datetime}\n")
+            f.write(f"End time: {end_datetime}\n")
+            f.write(f"Total processing time: {int(hours)}h {int(minutes)}m {int(seconds)}s ({total_time:.2f} seconds)\n")
+            f.write(f"Documents processed: {len(self.checkpoint['processed_files'])}\n")
+            f.write(f"Total chunks: {self.checkpoint['total_chunks']}\n")
+            f.write(f"Chunks per second: {self.checkpoint['total_chunks'] / total_time:.2f}\n")
+            f.write(f"Documents per second: {len(self.checkpoint['processed_files']) / total_time:.2f}\n")
+        
+        logger.info(f"Timing information saved to {timing_file}")
 
 
-def main(config_path=None):
+def main(config_path=None, threads=None, config_dir=None, use_cpu=None, rag_impl=None):
     """Main function."""
-    if config_path is None:
+    if config_path is None and config_dir is None:
         parser = argparse.ArgumentParser(description="Build RAG dataset with configurable components")
-        parser.add_argument("--config", type=str, required=True,
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument("--config", type=str,
                           help="Path to configuration file (YAML or JSON)")
+        group.add_argument("--config_dir", type=str,
+                          help="Path to configuration directory (config.d)")
+        parser.add_argument("--threads", type=int, default=None,
+                          help="Number of worker threads to use for processing")
+        
+        # Processing mode options
+        proc_group = parser.add_argument_group("Processing mode options")
+        proc_group.add_argument("--gpu", action="store_true",
+                          help="Use GPU-based processing (CPU is the default)")
+        
+        # RAG implementation options
+        rag_group = parser.add_argument_group("RAG implementation options")
+        rag_group.add_argument("--pathrag", action="store_true",
+                          help="Use PathRAG implementation (default)")
+        rag_group.add_argument("--graphrag", action="store_true",
+                          help="Use GraphRAG implementation")
+        rag_group.add_argument("--literag", action="store_true",
+                          help="Use LiteRAG implementation")
+                          
+        # Document filtering options
+        filter_group = parser.add_argument_group("Document filtering options")
+        filter_group.add_argument("--filter-domains", action="store_true",
+                          help="Only process documents from enabled domains (default)")
+        filter_group.add_argument("--no-filter-domains", action="store_true",
+                          help="Process all documents regardless of domain enabled status")
+        
         args = parser.parse_args()
         config_path = args.config
+        config_dir = args.config_dir
+        threads = args.threads
         
-    # Log key information
-    logger.info(f"Using config file: {config_path}")
+        # Determine CPU/GPU usage based on arguments
+        if args.gpu:
+            use_cpu = False
+            logger.info("Using GPU mode as specified")
+        else:
+            # Default to CPU mode
+            use_cpu = True
+            logger.info("Using CPU mode (default)")
+                
+        # Determine RAG implementation
+        if args.graphrag and args.literag:
+            logger.warning("Multiple RAG implementations specified, defaulting to PathRAG")
+            rag_impl = "pathrag"
+        elif args.graphrag:
+            rag_impl = "graphrag"
+            logger.info("Using GraphRAG implementation")
+        elif args.literag:
+            rag_impl = "literag"
+            logger.info("Using LiteRAG implementation")
+        else:
+            # Default to PathRAG
+            rag_impl = "pathrag"
+            logger.info("Using PathRAG implementation (default)")
+            
+        # Determine domain filtering setting
+        filter_domains = None
+        if args.filter_domains and args.no_filter_domains:
+            logger.warning("Both --filter-domains and --no-filter-domains specified, defaulting to filtering enabled")
+            filter_domains = True
+        elif args.filter_domains:
+            filter_domains = True
+            logger.info("Domain filtering enabled - only processing documents from enabled domains")
+        elif args.no_filter_domains:
+            filter_domains = False
+            logger.info("Domain filtering disabled - processing all documents regardless of domain status")
     
+    # Set up PyTorch environment variables for multithreading
+    # This is now simpler since CPU is the default mode
+    if not args.gpu:
+        # Determine number of threads to use
+        cpu_threads = threads or os.cpu_count()
+        logger.info(f"Setting up PyTorch for CPU processing with {cpu_threads} threads")
+        
+        # Set PyTorch environment variables for multithreading
+        os.environ["OMP_NUM_THREADS"] = str(cpu_threads)
+        os.environ["MKL_NUM_THREADS"] = str(cpu_threads)
+        os.environ["NUMEXPR_NUM_THREADS"] = str(cpu_threads)
+        os.environ["OPENBLAS_NUM_THREADS"] = str(cpu_threads)
+        os.environ["VECLIB_MAXIMUM_THREADS"] = str(cpu_threads)
+    
+    # Log key information
+    if config_path:
+        logger.info(f"Using config file: {config_path}")
+        # Load configuration from file
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            
+        # Apply domain filtering setting if specified
+        if filter_domains is not None:
+            config["filter_by_domains"] = filter_domains
+            
+        # Apply minimal processing mode settings
+        _apply_processing_mode(config, use_cpu, threads)
+            
+        # Apply RAG implementation settings if specified
+        if rag_impl is not None:
+            # Modify the configuration for the specified RAG implementation
+            _apply_rag_implementation(config, rag_impl)
+        
+        # Create builder with the modified configuration
+        builder = RAGDatasetBuilder(config_file=config_path, config_override=config)
+    else:
+        logger.info(f"Using config directory: {config_dir}")
+        # Load configuration from config.d directory
+        from src.core.config_loader import get_configuration
+        config = get_configuration(config_dir=config_dir)
+        
+        # Apply CPU/GPU settings if specified
+        if use_cpu is not None:
+            # Modify the configuration for CPU/GPU
+            _apply_processing_mode(config, use_cpu, threads)
+            
+        # Apply RAG implementation settings if specified
+        if rag_impl is not None:
+            # Modify the configuration for the specified RAG implementation
+            _apply_rag_implementation(config, rag_impl)
+        
+        # Create builder with the merged configuration
+        builder = RAGDatasetBuilder(config=config)
+        logger.info("Created builder with merged configuration from config directory")
+        
+    if threads:
+        logger.info(f"Using {threads} worker threads for processing")
+        # Set the number of worker threads for concurrent.futures
+        os.environ["PYTHONEXECUTIONPOOL_MAX_WORKERS"] = str(threads)
+    
+    # Builder is already created above based on config_path or config_dir
     # Build dataset
-    builder = RAGDatasetBuilder(config_file=config_path)
     builder.build_dataset()
+
+
+def _apply_processing_mode(config, use_cpu, threads=None):
+    """Apply minimal processing mode settings to the configuration.
+    Most configuration is now handled by config files.
+    
+    Args:
+        config: Configuration dictionary to modify
+        use_cpu: Whether to use CPU (True) or GPU (False)
+        threads: Number of threads to use for CPU processing (if None, uses all available cores)
+    """
+    # We respect the collection.enabled setting from the config file
+    # No override here - if collection.enabled is false, we won't download papers
+    
+    return config
+
+
+def _apply_rag_implementation(config, rag_impl):
+    """Apply RAG implementation-specific settings to the configuration.
+    
+    Args:
+        config: Configuration dictionary to modify
+        rag_impl: RAG implementation to use ("pathrag", "graphrag", or "literag")
+    """
+    logger.info(f"Applying {rag_impl.upper()} implementation settings")
+    
+    # Set output directory based on RAG implementation
+    if "output_dir" in config:
+        # Check if we should use a custom output directory without appending RAG implementation
+        # This is controlled by the CUSTOM_OUTPUT_DIR environment variable or the custom_output_dir config setting
+        custom_output_dir = os.environ.get("CUSTOM_OUTPUT_DIR", "false").lower() == "true"
+        if "custom_output_dir" in config:
+            custom_output_dir = config["custom_output_dir"]
+            
+        if custom_output_dir:
+            # Use the output directory as is without appending RAG implementation
+            base_dir = config["output_dir"]
+            logger.info(f"Using custom output directory: {base_dir}")
+        else:
+            # Update the base output directory to include the RAG implementation
+            base_dir = config["output_dir"]
+            # If the base directory already has a RAG implementation name, replace it
+            if any(impl in base_dir for impl in ["pathrag", "graphrag", "literag"]):
+                for impl in ["pathrag", "graphrag", "literag"]:
+                    base_dir = base_dir.replace(impl, rag_impl)
+            else:
+                # Otherwise, append the RAG implementation name
+                base_dir = os.path.join(base_dir, rag_impl)
+        
+        config["output_dir"] = base_dir
+        logger.info(f"Set output directory to: {base_dir}")
+    
+    # Apply PathRAG-specific settings
+    if rag_impl == "pathrag":
+        # Enable PathRAG-specific features
+        if "pathrag" not in config:
+            config["pathrag"] = {}
+        
+        config["pathrag"]["enabled"] = True
+        
+        # Set default PathRAG formatter if not already set
+        if "output" not in config:
+            config["output"] = {}
+        if "formatters" not in config["output"]:
+            config["output"]["formatters"] = {}
+        if "pathrag" not in config["output"]["formatters"]:
+            config["output"]["formatters"]["pathrag"] = {
+                "enabled": True,
+                "type": "pathrag"
+            }
+        
+        # Set PathRAG as the default formatter
+        config["default_output_formatter"] = "pathrag"
+    
+    # Apply GraphRAG-specific settings
+    elif rag_impl == "graphrag":
+        # Enable GraphRAG-specific features
+        if "graphrag" not in config:
+            config["graphrag"] = {}
+        
+        config["graphrag"]["enabled"] = True
+        
+        # Set default GraphRAG formatter if not already set
+        if "output" not in config:
+            config["output"] = {}
+        if "formatters" not in config["output"]:
+            config["output"]["formatters"] = {}
+        if "graphrag" not in config["output"]["formatters"]:
+            config["output"]["formatters"]["graphrag"] = {
+                "enabled": True,
+                "type": "graphrag"
+            }
+        
+        # Set GraphRAG as the default formatter
+        config["default_output_formatter"] = "graphrag"
+    
+    # Apply LiteRAG-specific settings
+    elif rag_impl == "literag":
+        # Enable LiteRAG-specific features
+        if "literag" not in config:
+            config["literag"] = {}
+        
+        config["literag"]["enabled"] = True
+        
+        # Set default LiteRAG formatter if not already set
+        if "output" not in config:
+            config["output"] = {}
+        if "formatters" not in config["output"]:
+            config["output"]["formatters"] = {}
+        if "literag" not in config["output"]["formatters"]:
+            config["output"]["formatters"]["literag"] = {
+                "enabled": True,
+                "type": "literag"
+            }
+        
+        # Set LiteRAG as the default formatter
+        config["default_output_formatter"] = "literag"
+    
+    return config
 
 
 if __name__ == "__main__":

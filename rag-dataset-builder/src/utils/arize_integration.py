@@ -117,6 +117,11 @@ class RAGDatasetBuilderArizeAdapter:
             
             logging.info(f"🔍 Setting up Phoenix OpenTelemetry with project name: {self.project_name}")
             logging.info(f"🔍 Using Phoenix endpoint: {endpoint}")
+            
+            # Check if persistent storage is configured
+            db_path = os.environ.get("PHOENIX_DB_PATH")
+            if db_path:
+                logging.info(f"🔍 Using persistent storage at: {db_path}")
                 
             # Register the Phoenix tracer provider
             self.tracer_provider = register(
@@ -650,6 +655,38 @@ def get_arize_adapter(config: Dict[str, Any]) -> Union[RAGDatasetBuilderArizeAda
         "phoenix_url",
         os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:8084")
     )
+    
+    # Set up persistent storage if enabled
+    storage_config = tracking_config.get("storage", {})
+    storage_enabled = storage_config.get("enabled", False)
+    
+    if storage_enabled and PHOENIX_AVAILABLE:
+        # Get storage path from config
+        storage_path = storage_config.get("path", "../monitoring/arize_phoenix")
+        
+        # Convert relative path to absolute if needed
+        if not os.path.isabs(storage_path):
+            script_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            project_root = os.path.dirname(script_dir)
+            
+            if storage_path.startswith("../"):
+                # Path relative to rag-dataset-builder directory
+                relative_path = storage_path.replace("../", "")
+                storage_path = os.path.join(project_root, relative_path)
+            elif storage_path.startswith("./"):
+                # Path relative to rag-dataset-builder directory
+                relative_path = storage_path.replace("./", "")
+                storage_path = os.path.join(script_dir, relative_path)
+            else:
+                # Default to project root if no prefix
+                storage_path = os.path.join(project_root, storage_path)
+        
+        # Create storage directory if it doesn't exist
+        os.makedirs(storage_path, exist_ok=True)
+        
+        # Set environment variable for Phoenix storage
+        os.environ["PHOENIX_DB_PATH"] = storage_path
+        logging.info(f"Arize Phoenix persistent storage enabled at: {storage_path}")
     
     logging.info(f"Initializing Arize Phoenix adapter with project: {project_name}")
     logging.info(f"Phoenix endpoint: {phoenix_url}")

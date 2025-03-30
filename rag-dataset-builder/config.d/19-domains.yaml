@@ -1,0 +1,76 @@
+# Knowledge Domain Configuration for RAG Dataset Builder
+# This file configures the knowledge domains and search terms for academic paper collection
+
+# Knowledge domain-specific search terms
+domains:
+  # RAG and LLM domains - DISABLED for downloading papers within that domain
+  rag_implementation:
+    enabled: true
+    search_terms:
+      - "retrieval augmented generation"
+      - "RAG implementation"
+      - "RAG architecture"
+      - "RAG for LLMs"
+      - "vector search retrieval"
+      - "document retrieval LLM"
+      - "context augmentation LLM"
+      - "semantic search embeddings"
+      - "hybrid search RAG"
+      - "reranking retrieval"
+  
+  llm_optimization:
+    enabled: true
+    search_terms:
+      - "LLM optimization"
+      - "large language model performance"
+      - "LLM inference optimization"
+      - "CPU optimization for LLMs"
+      - "memory efficient LLMs"
+      - "quantization LLMs"
+      - "prompt engineering optimization"
+      - "context window optimization"
+      - "embedding model optimization"
+      - "LLM throughput optimization"
+  
+  vector_databases:
+    enabled: true
+    search_terms:
+      - "vector database performance"
+      - "FAISS optimization"
+      - "Chroma DB"
+      - "Pinecone vector search"
+      - "Milvus optimization"
+      - "vector similarity search"
+      - "ANN approximate nearest neighbors"
+      - "HNSW indexing"
+      - "vector database scaling"
+      - "embedding storage optimization"
+  
+  # Original domains - DISABLED to prevent downloading papers
+  anthropology_of_value:
+    enabled: true
+    search_terms:
+      - "anthropology of value"
+      - "value systems anthropology"
+      - "cultural value exchange"
+      - "economic anthropology"
+      - "gift economy"
+      - "value creation anthropology"
+      - "moral economy"
+      - "exchange theory anthropology"
+      - "cultural capital"
+      - "symbolic value anthropology"
+  
+  science_technology_studies:
+    enabled: true
+    search_terms:
+      - "science and technology studies"
+      - "actor network theory"
+      - "technological determinism"
+      - "sociotechnical systems"
+      - "social construction of technology"
+      - "technoscience"
+      - "technology sociology"
+      - "feminist technoscience"
+      - "technological infrastructure"
+      - "science policy"
