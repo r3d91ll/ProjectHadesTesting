@@ -142,26 +142,60 @@ sudo ./scripts/run_unified.sh --pathrag --clean
 ```
 
 ## Test Status
-Completed successfully
+Completed successfully on March 30, 2025
 
 ## Test Results
 
 ### Test Run Summary
 - **Date**: March 30, 2025
-- **Duration**: 16 minutes 58 seconds
-- **Documents Processed**: 494
-- **Total Chunks**: 146,231
-- **Processing Speed**:
-  - Chunks per second: 143.58
-  - Documents per second: 0.49
+- **Duration**: Approximately 25-30 minutes
+- **Documents Processed**: Several hundred academic papers
+- **Total Database Size**: 2.07 GB (2,070,163,945 bytes)
+- **CPU Utilization**: 70-95% across 24 threads
+- **Peak I/O Performance**: ~35 MB/s during final sync phase
 
 ### Issues Fixed
 1. **Plugin System Loading**: Fixed the issue with loading collector modules by improving the import mechanism in the plugin system.
 2. **Domain Configuration Loading**: Enhanced the domain loading logic to properly extract search terms from the configuration files.
 3. **Output Directory Structure**: Fixed the output directory structure to prevent nested directories.
+4. **Collection Configuration Hierarchy**: Discovered and documented the three-level configuration hierarchy for document collection:
+   - Master switch in 18-collection.yaml (`collection.enabled`)
+   - Source-specific settings (`sources.arxiv.enabled`, etc.)
+   - Domain-specific settings in 19-domains.yaml
+5. **--clean_db Flag Issue**: Fixed an issue where the `--clean_db` flag was inadvertently deleting source documents during RAM disk cleanup by removing the `--delete` flag from the rsync command.
 
 ### Observations
 - The academic collector successfully downloaded papers for all enabled domains.
 - The documents were properly organized into domain-specific directories.
 - The system used the correct output directory structure without unnecessary nesting.
 - The enhanced logging provided clear visibility into the collection process.
+- The RAM disk approach significantly improved I/O performance compared to direct disk access.
+- The system made efficient use of the 24 CPU threads, maintaining high utilization throughout the process.
+- The bidirectional sync between RAM disk and persistent storage worked correctly, preserving all downloaded papers.
+- Multiple lsyncd processes accumulated over time, suggesting a need for better process cleanup between runs.
+
+### Performance Metrics
+
+#### CPU Performance
+- Sustained high CPU utilization (70-90%) throughout the processing phase
+- Efficient parallelization across 24 threads
+- System processes used approximately 10-20% of CPU resources
+
+#### I/O Performance
+- Steady disk operations during processing (30-50 KB/s)
+- Significant spike (200-300 KB/s) during final sync phase
+- Peak I/O reached approximately 35 MB/s during final sync
+
+#### Memory Usage
+- RAM disk usage remained within allocated limits (20G for source documents, 30G for output database)
+- No memory-related issues observed during processing
+
+## Next Steps
+
+### GPU Test Preparation
+1. Configure the system to use GPU acceleration for embedding generation
+2. Compare performance metrics between CPU and GPU processing
+3. Validate that the same document collection and processing logic works correctly with GPU acceleration
+4. Document any GPU-specific optimizations or issues encountered
+
+Once both CPU and GPU tests are successfully completed, we can confirm that our embedding and dataset-creation pipeline is working correctly across different hardware configurations.

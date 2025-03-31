@@ -1,9 +1,22 @@
 # CPU-based Embedder Configuration for PathRAG Dataset Builder
 # This is the default configuration (no special flag needed)
 
-# This file is optional since the default CPU configuration is already in 30-embedders.yaml
-# It's kept here for consistency with the config.d numbering convention and to allow for
-# CPU-specific optimizations if needed in the future
+# Override the default embedder to use Ollama for CPU processing
+embedder:
+  type: "ollama"  # Use Ollama embedder for CPU processing
+  use_gpu: false
+  model_name: "nomic-embed-text"  # Use the specialized embedding model
+
+embedders:
+  # Configure Ollama embedder for CPU processing
+  ollama:
+    type: "ollama"
+    model_name: "nomic-embed-text"  # Using specialized embedding model
+    host: "localhost"
+    port: 11434
+    batch_size: 32  # Same batch size as GPU for fair comparison
+    cache_embeddings: true
+    max_workers: 8  # Number of concurrent workers
 
 # Processing configuration for CPU mode
 processing:
@@ -15,6 +28,10 @@ processing:
   batch_size: 10  # Process documents in batches of 10
   num_workers: 12  # Reduced to 12 workers to avoid resource contention
   use_cpu_only: true  # Force CPU-only mode
+  
+# Ensure Ollama uses CPU for embeddings
+ollama:
+  use_gpu: false
 
 # Enable collection to download academic papers
 collection:

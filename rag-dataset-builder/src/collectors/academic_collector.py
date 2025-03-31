@@ -242,10 +242,8 @@ class AcademicCollector:
             papers_per_term: Number of papers to collect per search term (overrides max_papers_per_category division)
             check_duplicates: Whether to check for and skip duplicate papers by paper ID
         """
-        # Check if collection is enabled in the configuration - this is the master switch
-        if "collection" not in self.config or not isinstance(self.config["collection"], dict) or not self.config["collection"].get("enabled", False):
-            logger.info("Document collection is disabled in the configuration. Skipping paper collection.")
-            return
+        # This method assumes the caller has already checked if collection is enabled
+        # It focuses solely on its specific job: collecting papers
             
         # Get collection parameters from config
         if "collection" in self.config and isinstance(self.config["collection"], dict):

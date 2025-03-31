@@ -38,7 +38,8 @@ chunker:
 
 # Embedding generation configuration is in config.d/30-embedders.yaml
 embedder:
-  type: "sentence_transformers"  # Default embedder type
+  type: "ollama"  # Use Ollama embedder for both CPU and GPU modes
+  model_name: "nomic-embed-text"  # Use the specialized embedding model
 
 # Output formatter configuration  
 output:

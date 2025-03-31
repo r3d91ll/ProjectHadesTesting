@@ -3,7 +3,7 @@
 
 # Collection settings
 collection:
-  enabled: true  # Master switch - set to false to disable all document collection
+  enabled: false  # Master switch - set to false to disable all document collection
   type: "academic"
   source: "multi"
   max_papers_per_term: 10  # Default reasonable value when collection is enabled

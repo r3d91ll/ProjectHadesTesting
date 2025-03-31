@@ -47,11 +47,26 @@ embedders:
     use_fp16: false  # Disable FP16 for CPU
     num_threads: 24  # Use multiple CPU threads
     
+  # Ollama embeddings configuration
+  ollama:
+    type: "ollama"
+    model_name: "nomic-embed-text"  # Specialized embedding model
+    host: "localhost"
+    port: 11434
+    batch_size: 32  # Larger batch size for specialized embedding model
+    cache_embeddings: true
+    max_workers: 8  # Number of concurrent workers
+    
   # BERT embeddings configuration
   bert:
     type: "bert"
     model: "bert-base-uncased"
     dimensions: 768
+    batch_size: 64
+    cache_embeddings: true
+    device: "cpu"  # Default to CPU (use --gpu flag to enable GPU processing)
+    use_fp16: false  # Disable FP16 for CPU
+    num_threads: 24  # Use multiple CPU threads
     batch_size: 64  # Larger batch size for CPU
     cache_embeddings: true
     device: "cpu"  # Default to CPU (use --gpu flag to enable GPU processing)

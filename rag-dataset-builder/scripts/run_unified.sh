@@ -313,7 +313,43 @@ function cleanup {
 # Register cleanup handler for various exit signals
 trap cleanup EXIT INT TERM
 
+# Extract the subdirectory from config.yaml output_dir if it exists
+# This improved regex extracts only the path, ignoring any comments that might follow
+CONFIG_OUTPUT_DIR=$(grep -E "^output_dir:" "${MAIN_CONFIG}" | sed -E 's/^output_dir:[[:space:]]*"?([^"#]+)"?[[:space:]]*#?.*/\1/' | tr -d ' ')
+OUTPUT_SUBDIR=""
+
+if [[ "$CONFIG_OUTPUT_DIR" == */* ]]; then
+    # Extract the subdirectory part after the last slash
+    OUTPUT_SUBDIR=$(echo "$CONFIG_OUTPUT_DIR" | sed -E 's/.*\/([^\/]+)$/\1/')
+    echo "Detected output subdirectory: $OUTPUT_SUBDIR" | tee -a ${LOG_FILE}
+fi
+
+# Now that all variables are defined, we can start the administrative tasks
 if [ "$USE_RAMDISK" = "true" ]; then
+    # Create all necessary RAM disk directories
+    echo "Creating all necessary RAM disk directories..." | tee -a ${LOG_FILE}
+    mkdir -p ${SOURCE_RAMDISK_PATH}
+    mkdir -p ${DB_RAMDISK_PATH}
+    
+    # Create subdirectories for the specific RAG implementation if OUTPUT_SUBDIR is defined
+    if [ -n "$OUTPUT_SUBDIR" ]; then
+        echo "Creating RAM disk subdirectories for ${OUTPUT_SUBDIR}..." | tee -a ${LOG_FILE}
+        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}"
+        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}/embeddings"
+        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}/graph"
+        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}/chunks"
+        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}/logs"
+        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}/metadata"
+        
+        # Also ensure the directories exist in the disk location
+        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}"
+        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}/embeddings"
+        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}/graph"
+        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}/chunks"
+        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}/logs"
+        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}/metadata"
+    fi
+    
     # First, copy source documents to RAM disk (faster initial copy than lsyncd)
     echo "Copying source documents to RAM disk..." | tee -a ${LOG_FILE}
     echo "Start time: $(date)" | tee -a ${LOG_FILE}
@@ -323,7 +359,6 @@ if [ "$USE_RAMDISK" = "true" ]; then
     
     # Create output directory structure in RAM disk
     echo "Creating output directory structure in RAM disk..." | tee -a ${LOG_FILE}
-    mkdir -p ${DB_RAMDISK_PATH}
     
     # Clean RAM disk if we're cleaning the database
     if [ "$CLEAN_DB" = true ]; then
@@ -434,12 +469,22 @@ fi
 # Set up config dir argument
 CONFIG_DIR_ARG="--config_dir ${CONFIG_D_DIR}"
 
-# Set up processing mode argument
+# Set up processing mode argument and environment variables for Ollama
 if [ "$PROCESSING_MODE" = "cpu" ]; then
     # CPU is now the default, so no argument needed
     PROCESSING_ARG=""
+    
+    # Set environment variables to force Ollama to use CPU
+    export OLLAMA_USE_CPU=true
+    export CUDA_VISIBLE_DEVICES=""  # Hide all CUDA devices
+    echo "Setting environment variables to force CPU usage for Ollama" | tee -a ${LOG_FILE}
 else
     PROCESSING_ARG="--gpu"
+    
+    # Set environment variables to allow Ollama to use GPU
+    export OLLAMA_USE_CPU=false
+    unset CUDA_VISIBLE_DEVICES  # Allow all CUDA devices
+    echo "Setting environment variables to enable GPU usage for Ollama" | tee -a ${LOG_FILE}
 fi
 
 # Set up RAG implementation argument
@@ -459,24 +504,7 @@ cp "${CONFIG_D_DIR}"/*.yaml "${TEMP_CONFIG_DIR}/"
 # Using 99- prefix ensures it loads last and overrides any previous settings
 TEMP_CONFIG_FILE="${TEMP_CONFIG_DIR}/99-paths.yaml"
 
-# Extract the subdirectory from config.yaml output_dir if it exists
-# This improved regex extracts only the path, ignoring any comments that might follow
-CONFIG_OUTPUT_DIR=$(grep -E "^output_dir:" "${MAIN_CONFIG}" | sed -E 's/^output_dir:[[:space:]]*"?([^"#]+)"?[[:space:]]*#?.*/\1/' | tr -d ' ')
-OUTPUT_SUBDIR=""
-
-if [[ "$CONFIG_OUTPUT_DIR" == */* ]]; then
-    # Extract the subdirectory part after the last slash
-    OUTPUT_SUBDIR=$(echo "$CONFIG_OUTPUT_DIR" | sed -E 's/.*\/([^\/]+)$/\1/')
-    echo "Detected output subdirectory: $OUTPUT_SUBDIR" | tee -a ${LOG_FILE}
-    
-    # Create the subdirectory in the RAM disk
-    if [ -n "$OUTPUT_SUBDIR" ]; then
-        mkdir -p "${DB_RAMDISK_PATH}/${OUTPUT_SUBDIR}"
-        
-        # Also ensure it exists in the disk location
-        mkdir -p "${DB_DIR}/${OUTPUT_SUBDIR}"
-    fi
-fi
+# This section has been moved to the top of the script for better variable definition
 
 # Determine which paths to use based on RAM disk setting
 if [ "$USE_RAMDISK" = "true" ]; then

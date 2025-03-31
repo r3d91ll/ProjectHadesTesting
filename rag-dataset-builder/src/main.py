@@ -18,7 +18,7 @@ from typing import Dict, Any, List, Optional
 
 # Import necessary components from our module
 from .builder import BaseProcessor, BaseChunker, BaseEmbedder, BaseOutputFormatter
-from .embedders import SentenceTransformerEmbedder, OpenAIEmbedder
+from .embedders import SentenceTransformerEmbedder, OpenAIEmbedder, OllamaEmbedder
 from .formatters import PathRAGFormatter, VectorDBFormatter, HuggingFaceDatasetFormatter
 from .processors import SimpleTextProcessor, PDFProcessor, CodeProcessor
 from .chunkers import SlidingWindowChunker, SemanticChunker
@@ -216,6 +216,25 @@ class RAGDatasetBuilder:
             model_name = embedder_config.get("model_name", "text-embedding-3-small")
             batch_size = embedder_config.get("batch_size", 100)
             return OpenAIEmbedder(model_name=model_name, batch_size=batch_size)
+        elif embedder_type == "ollama":
+            # First check if there's a specific ollama config in the embedders section
+            ollama_config = self.config.get("embedders", {}).get("ollama", {})
+            
+            # Use the specific ollama config if available, otherwise fall back to embedder config
+            model_name = ollama_config.get("model_name", embedder_config.get("model_name", "tinyllama"))
+            host = ollama_config.get("host", embedder_config.get("host", "localhost"))
+            port = ollama_config.get("port", embedder_config.get("port", 11434))
+            batch_size = ollama_config.get("batch_size", embedder_config.get("batch_size", 16))
+            max_workers = ollama_config.get("max_workers", 8)
+            
+            # Get GPU usage setting from config
+            use_gpu = ollama_config.get("use_gpu", embedder_config.get("use_gpu", True))
+            
+            logger.info(f"Using Ollama embedder with model {model_name} at {host}:{port} with {max_workers} workers")
+            logger.info(f"Ollama GPU usage: {'Enabled' if use_gpu else 'Disabled (using CPU)'}")
+            
+            return OllamaEmbedder(model_name=model_name, host=host, port=port, 
+                                 batch_size=batch_size, max_workers=max_workers, use_gpu=use_gpu)
         else:
             logger.error(f"Unknown embedder type: {embedder_type}")
             sys.exit(1)
@@ -544,10 +563,24 @@ class RAGDatasetBuilder:
     
     def _run_collectors(self) -> None:
         """Initialize and run academic collectors based on config."""
+        # Get the collection configuration
         collection_config = self.config.get("collection", {})
-        if not collection_config.get("enabled", False):
-            logger.info("Academic collection is disabled in the configuration.")
+        
+        # CRITICAL: Check the master switch first - if collection is disabled, don't proceed
+        # This is the top-level switch that controls all document collection
+        collection_enabled = collection_config.get("enabled", False)
+        
+        # Log the status clearly for debugging
+        logger.info(f"COLLECTION MASTER SWITCH STATUS: {collection_enabled}")
+        
+        # If collection is disabled, skip all collection steps
+        if not collection_enabled:
+            logger.info("Academic collection is DISABLED in the configuration (master switch is off).")
+            logger.info("No documents will be downloaded. Skipping all collection steps.")
             return
+        
+        # If we get here, collection is enabled
+        logger.info(f"Collection ENABLED: {collection_enabled} (master switch is on)")
 
         logger.info("Starting academic paper collection...")
         sources_config = collection_config.get("sources", {})
@@ -567,7 +600,7 @@ class RAGDatasetBuilder:
                     arxiv_config = {
                         "domains": {},
                         "collection": {
-                            "enabled": collection_config.get("enabled", False),  # Include the enabled flag
+                            "enabled": True,  # Always set to True here since we already checked the master switch
                             "max_papers_per_term": collection_config.get("max_papers_per_term", 0),
                             "max_documents_per_category": collection_config.get("max_documents_per_category", 0),
                             "download_delay": collection_config.get("download_delay", 1.0),
@@ -654,7 +687,12 @@ class RAGDatasetBuilder:
                 
                 # Run the ArXiv collection
                 max_papers = collection_config.get("max_papers_per_term", 1000)
-                academic_collector.collect_arxiv_papers(papers_per_term=max_papers)
+                
+                # Double-check that collection is enabled before proceeding
+                if collection_enabled:
+                    academic_collector.collect_arxiv_papers(papers_per_term=max_papers)
+                else:
+                    logger.info("Skipping ArXiv collection as collection is disabled.")
                 
                 # Clean up temp file
                 try:
@@ -945,6 +983,52 @@ def _apply_processing_mode(config, use_cpu, threads=None):
         use_cpu: Whether to use CPU (True) or GPU (False)
         threads: Number of threads to use for CPU processing (if None, uses all available cores)
     """
+    # Set up embedder configuration based on CPU/GPU flag
+    if "embedder" not in config:
+        config["embedder"] = {}
+    
+    # Set use_gpu based on the use_cpu parameter (inverted logic)
+    config["embedder"]["use_gpu"] = not use_cpu
+    
+    # Configure embedder based on CPU/GPU mode
+    if use_cpu:
+        logger.info("Using CPU mode for embedding generation with Ollama")
+        
+        # Configure for CPU with Ollama
+        if "embedders" not in config:
+            config["embedders"] = {}
+        
+        if "ollama" not in config["embedders"]:
+            config["embedders"]["ollama"] = {}
+            
+        # Set Ollama configuration for CPU
+        config["embedders"]["ollama"]["model_name"] = "nomic-embed-text"
+        config["embedders"]["ollama"]["host"] = "localhost"
+        config["embedders"]["ollama"]["port"] = 11434
+        config["embedders"]["ollama"]["batch_size"] = 32
+        config["embedders"]["ollama"]["max_workers"] = 8
+        config["embedders"]["ollama"]["use_gpu"] = False  # Explicitly disable GPU for CPU mode
+        config["embedder"]["type"] = "ollama"
+    else:
+        logger.info("Using GPU mode for embedding generation with Ollama")
+        
+        # Configure for GPU with Ollama
+        if "embedders" not in config:
+            config["embedders"] = {}
+        
+        if "ollama" not in config["embedders"]:
+            config["embedders"]["ollama"] = {}
+            
+        # Set Ollama configuration
+        config["embedders"]["ollama"]["model_name"] = "nomic-embed-text"  # Use specialized embedding model for better performance
+        config["embedders"]["ollama"]["host"] = "localhost"
+        config["embedders"]["ollama"]["port"] = 11434
+        config["embedders"]["ollama"]["batch_size"] = 32
+        config["embedders"]["ollama"]["use_gpu"] = True  # Explicitly enable GPU for GPU mode
+        
+        # Set the embedder type to ollama
+        config["embedder"]["type"] = "ollama"
+    
     # We respect the collection.enabled setting from the config file
     # No override here - if collection.enabled is false, we won't download papers
     

@@ -1,0 +1,30 @@
+# Ollama CPU-specific configuration
+# This file ensures Ollama runs in CPU-only mode for CPU tests
+
+# Override the default embedder to use Ollama in CPU-only mode
+embedder:
+  type: "ollama"
+  use_gpu: false  # Explicitly disable GPU
+
+# Configure Ollama embedder for CPU-only processing
+embedders:
+  ollama:
+    type: "ollama"
+    model_name: "nomic-embed-text"  # Use specialized embedding model for better performance
+    host: "localhost"
+    port: 11434
+    batch_size: 32
+    max_workers: 8
+    use_gpu: false  # Explicitly disable GPU for CPU mode
+
+# Ollama-specific settings
+ollama:
+  use_gpu: false  # Force CPU-only mode for Ollama
+  num_gpu: 0      # Explicitly set to 0 GPUs
+  use_cpu: true   # Force CPU usage
+
+# Processing configuration optimized for CPU
+processing:
+  batch_size: 5    # Process fewer documents at once for CPU
+  max_workers: 24  # Use available CPU threads
+  use_cpu_only: true

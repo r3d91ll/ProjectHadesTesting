@@ -308,6 +308,9 @@ from .base import (
     BaseRetrievalSystem
 )
 
+# Import our embedders
+from ..embedders import SentenceTransformerEmbedder, OpenAIEmbedder, OllamaEmbedder
+
 # Register base implementations
 register_plugin('document_processors', 'base', BaseDocumentProcessor)
 register_plugin('chunkers', 'base', BaseTextChunker)
@@ -316,6 +319,11 @@ register_plugin('storage_backends', 'networkx', NetworkXStorageBackend)
 register_plugin('formatters', 'base', BaseOutputFormatter)
 register_plugin('trackers', 'base', BasePerformanceTracker)
 register_plugin('retrieval_systems', 'base', BaseRetrievalSystem)
+
+# Register embedders
+register_plugin('embedders', 'sentence_transformers', SentenceTransformerEmbedder)
+register_plugin('embedders', 'openai', OpenAIEmbedder)
+register_plugin('embedders', 'ollama', OllamaEmbedder)
 
 # Discover plugins
 discover_plugins()
