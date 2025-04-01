@@ -129,4 +129,6 @@ arize_phoenix_data/
 source_documents/papers/*
 
 source_documents/academic_papers/*
-logs/
+logs/*
+
+rag_databases/*

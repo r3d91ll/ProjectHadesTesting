@@ -114,9 +114,9 @@ services:
     container_name: arize-phoenix
     restart: unless-stopped
     environment:
-      - PHOENIX_DB_PATH=/phoenix/data
+      - PHOENIX_WORKING_DIR=/mnt/data
     volumes:
-      - arize_data:/phoenix/data
+      - arize_data:/mnt/data
     ports:
       - "8084:6006"  # Phoenix UI
       

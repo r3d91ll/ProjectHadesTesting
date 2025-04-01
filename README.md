@@ -113,6 +113,65 @@ The project supports two LLM inference options:
 
 See [Ollama Integration Documentation](pathrag/docs/ollama_integration.md) for details on setting up local inference.
 
+## Redis Configuration and Performance Optimization
+
+The system uses Redis for high-performance in-memory caching during the dataset creation and embedding process. This significantly improves processing speed compared to disk-based operations, especially when handling large document collections.
+
+### Redis Configuration Files
+
+The Redis configuration is primarily controlled through the following files:
+
+1. **Main Configuration File**: `/home/todd/ML-Lab/New-HADES/rag-dataset-builder/config/config.yaml`
+   - Contains general Redis settings and processing optimization parameters
+
+2. **Embedder Configuration**: `/home/todd/ML-Lab/New-HADES/rag-dataset-builder/config.d/30-embedders.yaml`
+   - Contains specific settings for embedding models and Redis integration with Ollama
+
+### Key Redis Configuration Parameters
+
+```yaml
+# In config.yaml
+processing:
+  batch_size: 64          # Batch size for document processing (higher for GPU, lower for CPU)
+  max_workers: 16         # Number of parallel workers for embedding generation
+  parallel_embedding: true # Enable parallel embedding processing
+
+embedders:
+  ollama:
+    batch_size: 64        # Batch size for Ollama embedding requests
+    max_concurrent_requests: 16  # Maximum concurrent embedding requests to Ollama
+    use_gpu: true         # Whether to use GPU for embedding generation
+```
+
+### Environment Variables
+
+The following environment variables can be set to control Redis behavior:
+
+- `PATHRAG_REDIS_ENABLED`: Set to `true` to enable Redis integration
+- `PATHRAG_REDIS_HOST`: Redis server hostname (default: `localhost`)
+- `PATHRAG_REDIS_PORT`: Redis server port (default: `6379`)
+- `PATHRAG_REDIS_DB`: Redis database number (default: `0`)
+- `PATHRAG_BATCH_SIZE`: Batch size in MB for document processing (default: `64` for GPU, `32` for CPU)
+- `PATHRAG_PARALLEL_CHUNKS`: Enable parallel chunk processing (default: `true`)
+- `PATHRAG_CHUNK_PARALLEL_WORKERS`: Number of worker threads for parallel processing
+
+### Performance Recommendations
+
+- **GPU Mode**: For GPU-accelerated processing, use larger batch sizes (64-128) to maximize GPU utilization
+- **CPU Mode**: For CPU-only processing, use smaller batch sizes (16-32) to avoid memory pressure
+- **Worker Threads**: Set to the number of available CPU cores for optimal performance
+- **Memory Management**: Ensure sufficient RAM is available when processing large document collections
+
+### Usage Example
+
+```bash
+# Create a dataset with GPU acceleration and optimized settings
+python hades_unified.py create --gpu --threads 8 --source-dir /path/to/source --output-dir /path/to/output
+
+# Create a dataset with CPU-only processing
+python hades_unified.py create --threads 16 --source-dir /path/to/source --output-dir /path/to/output
+```
+
 ### Installation
 
 #### Option 1: Manual Setup

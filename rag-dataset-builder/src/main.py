@@ -943,7 +943,7 @@ def main(config_path=None, threads=None, config_dir=None, use_cpu=None, rag_impl
             _apply_rag_implementation(config, rag_impl)
         
         # Create builder with the modified configuration
-        builder = RAGDatasetBuilder(config_file=config_path, config_override=config)
+        builder = RAGDatasetBuilder(config_file=config_path)
     else:
         logger.info(f"Using config directory: {config_dir}")
         # Load configuration from config.d directory
